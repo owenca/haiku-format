@@ -1,6 +1,12 @@
-class BreakConstructorInitializers
-{
-	int a, b, c;
+class BreakConstructorInitializers {
+	private: int a, b;
 
-	BreakConstructorInitializers(int i, int j, int k) : a(i), b(j), c(k) {}
+	public:
+		BreakConstructorInitializers(int i)
+			: a(i) { b = 0; }
+		BreakConstructorInitializers(int i, int j);
 };
+
+
+BreakConstructorInitializers::BreakConstructorInitializers(int i, int j)
+: a(i), b(j) {}

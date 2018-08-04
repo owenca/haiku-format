@@ -242,7 +242,7 @@ template <> struct MappingTraits<FormatStyle> {
 
     if (IO.outputting()) {
       StringRef StylesArray[] = {"LLVM",    "Google", "Chromium",
-                                 "Mozilla", "WebKit", "GNU"};
+                                 "Mozilla", "WebKit", "GNU", "Haiku"};
       ArrayRef<StringRef> Styles(StylesArray);
       for (size_t i = 0, e = Styles.size(); i < e; ++i) {
         StringRef StyleName(Styles[i]);
@@ -822,6 +822,42 @@ FormatStyle getGNUStyle() {
   return Style;
 }
 
+FormatStyle getHaikuStyle() {
+  FormatStyle Style = getLLVMStyle();
+  Style.AccessModifierOffset = -4;
+  Style.AlignEscapedNewlines = FormatStyle::ENAS_DontAlign;
+  Style.AlignAfterOpenBracket = FormatStyle::BAS_DontAlign;
+  Style.AlignOperands = false;
+  Style.AlignTrailingComments = false;
+  Style.AllowAllParametersOfDeclarationOnNextLine = false;
+  Style.AllowShortFunctionsOnASingleLine = FormatStyle::SFS_InlineOnly;
+  Style.AlwaysBreakAfterReturnType = FormatStyle::RTBS_TopLevelDefinitions;
+  Style.AlwaysBreakAfterDefinitionReturnType = FormatStyle::DRTBS_TopLevel;
+  Style.BreakBeforeBinaryOperators = FormatStyle::BOS_All;
+  Style.BreakBeforeBraces = FormatStyle::BS_Custom;
+  Style.BraceWrapping = {true, false, false, true, false,
+                         false, false, false, true, true,
+                         false, false, true,  true,  true};
+  Style.BreakConstructorInitializers = FormatStyle::BCIS_Haiku;
+/*
+  Style.CommentPragmas = "^ IWYU pragma:";
+  Style.IncludeCategories = {{"^\"(llvm|llvm-c|clang|clang-c)/", 2},
+                                 {"^(<|\"(gtest|gmock|isl|json)/)", 3},
+                                 {".*", 1}};
+  Style.IncludeIsMainRegex = "(Test)?$";
+  Style.IncludeBlocks = FormatStyle::IBS_Regroup;
+*/
+  Style.IndentCaseLabels = true;
+  Style.IndentWidth = 4;
+  Style.TabWidth = 4;
+  Style.MaxEmptyLinesToKeep = 2;
+  Style.PointerAlignment = FormatStyle::PAS_Left;
+  Style.UseTab = FormatStyle::UT_Always;
+  Style.SpaceAfterCStyleCast = true;
+  Style.SpaceAfterTemplateKeyword = false;
+  return Style;
+}
+
 FormatStyle getNoStyle() {
   FormatStyle NoStyle = getLLVMStyle();
   NoStyle.DisableFormat = true;
@@ -844,6 +880,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
     *Style = getWebKitStyle();
   } else if (Name.equals_lower("gnu")) {
     *Style = getGNUStyle();
+  } else if (Name.equals_lower("haiku")) {
+    *Style = getHaikuStyle();
   } else if (Name.equals_lower("none")) {
     *Style = getNoStyle();
   } else {
@@ -2089,7 +2127,7 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
 
 const char *StyleOptionHelpDescription =
     "Coding style, currently supports:\n"
-    "  LLVM, Google, Chromium, Mozilla, WebKit.\n"
+    "  LLVM, Google, Chromium, Mozilla, WebKit, Haiku.\n"
     "Use -style=file to load style configuration from\n"
     ".clang-format file located in one of the parent\n"
     "directories of the source file (or current\n"

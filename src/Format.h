@@ -1721,6 +1721,10 @@ FormatStyle getWebKitStyle();
 /// http://www.gnu.org/prep/standards/standards.html
 FormatStyle getGNUStyle();
 
+/// \brief Returns a format style complying with Haiku's coding guidelines:
+/// http://www.haiku-os.org/development/coding-guidelines
+FormatStyle getHaikuStyle();
+
 /// \brief Returns style indicating formatting should be not applied at all.
 FormatStyle getNoStyle();
 
