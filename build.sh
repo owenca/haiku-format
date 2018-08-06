@@ -15,13 +15,13 @@ cd src
 update.sh
 cd ..
 
-if [ ! -d build ]; then
+if [ -d build ]; then
+	cd build
+else
 	mkdir build
 	cd build
-	cmake -G "Unix Makefiles" ../llvm
-	cd ..
+	cmake -DCMAKE_BUILD_TYPE=MinSizeRel -G "Unix Makefiles" ../llvm
 fi
 
-cd build
 make clang-format
 ln -fs $PWD/bin/clang-format ../haiku-format

@@ -7,6 +7,5 @@ class BreakConstructorInitializers {
 		BreakConstructorInitializers(int i, int j);
 };
 
-
 BreakConstructorInitializers::BreakConstructorInitializers(int i, int j)
 : a(i), b(j) {}
