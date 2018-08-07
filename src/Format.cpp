@@ -123,6 +123,7 @@ template <> struct ScalarEnumerationTraits<FormatStyle::BraceBreakingStyle> {
     IO.enumCase(Value, "Allman", FormatStyle::BS_Allman);
     IO.enumCase(Value, "GNU", FormatStyle::BS_GNU);
     IO.enumCase(Value, "WebKit", FormatStyle::BS_WebKit);
+    IO.enumCase(Value, "Haiku", FormatStyle::BS_Haiku);
     IO.enumCase(Value, "Custom", FormatStyle::BS_Custom);
   }
 };
@@ -421,6 +422,7 @@ template <> struct MappingTraits<FormatStyle> {
 
 template <> struct MappingTraits<FormatStyle::BraceWrappingFlags> {
   static void mapping(IO &IO, FormatStyle::BraceWrappingFlags &Wrapping) {
+    IO.mapOptional("AfterCase", Wrapping.AfterCase);
     IO.mapOptional("AfterClass", Wrapping.AfterClass);
     IO.mapOptional("AfterControlStatement", Wrapping.AfterControlStatement);
     IO.mapOptional("AfterEnum", Wrapping.AfterEnum);
@@ -526,7 +528,7 @@ static FormatStyle expandPresets(const FormatStyle &Style) {
   if (Style.BreakBeforeBraces == FormatStyle::BS_Custom)
     return Style;
   FormatStyle Expanded = Style;
-  Expanded.BraceWrapping = {false, false, false, false, false,
+  Expanded.BraceWrapping = {false, false, false, false, false, false,
                             false, false, false, false, false,
                             false, false, true,  true,  true};
   switch (Style.BreakBeforeBraces) {
@@ -551,6 +553,7 @@ static FormatStyle expandPresets(const FormatStyle &Style) {
     Expanded.BraceWrapping.BeforeElse = true;
     break;
   case FormatStyle::BS_Allman:
+    Expanded.BraceWrapping.AfterCase = true;
     Expanded.BraceWrapping.AfterClass = true;
     Expanded.BraceWrapping.AfterControlStatement = true;
     Expanded.BraceWrapping.AfterEnum = true;
@@ -564,10 +567,17 @@ static FormatStyle expandPresets(const FormatStyle &Style) {
     break;
   case FormatStyle::BS_GNU:
     Expanded.BraceWrapping = {true, true, true, true, true, true, true, true,
-                              true, true, true, true, true, true, true};
+                              true, true, true, true, true, true, true, true};
     break;
   case FormatStyle::BS_WebKit:
     Expanded.BraceWrapping.AfterFunction = true;
+    break;
+  case FormatStyle::BS_Haiku:
+    Expanded.BraceWrapping.AfterCase = true;
+    Expanded.BraceWrapping.AfterClass = true;
+    Expanded.BraceWrapping.AfterFunction = true;
+    Expanded.BraceWrapping.AfterExternBlock = true;
+    Expanded.BraceWrapping.BeforeCatch = true;
     break;
   default:
     break;
@@ -600,7 +610,7 @@ FormatStyle getLLVMStyle() {
   LLVMStyle.BreakBeforeBinaryOperators = FormatStyle::BOS_None;
   LLVMStyle.BreakBeforeTernaryOperators = true;
   LLVMStyle.BreakBeforeBraces = FormatStyle::BS_Attach;
-  LLVMStyle.BraceWrapping = {false, false, false, false, false,
+  LLVMStyle.BraceWrapping = {false, false, false, false, false, false,
                              false, false, false, false, false,
                              false, false, true,  true,  true};
   LLVMStyle.BreakAfterJavaFieldAnnotations = false;
@@ -834,10 +844,7 @@ FormatStyle getHaikuStyle() {
   Style.AlwaysBreakAfterReturnType = FormatStyle::RTBS_TopLevelDefinitions;
   Style.AlwaysBreakAfterDefinitionReturnType = FormatStyle::DRTBS_TopLevel;
   Style.BreakBeforeBinaryOperators = FormatStyle::BOS_All;
-  Style.BreakBeforeBraces = FormatStyle::BS_Custom;
-  Style.BraceWrapping = {true, false, false, true, false,
-                         false, false, false, true, true,
-                         false, false, true,  true,  true};
+  Style.BreakBeforeBraces = FormatStyle::BS_Haiku;
   Style.BreakConstructorInitializers = FormatStyle::BCIS_Haiku;
 /*
   Style.CommentPragmas = "^ IWYU pragma:";

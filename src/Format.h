@@ -564,6 +564,7 @@ struct FormatStyle {
     ///   enum X : int { A, B };
     /// \endcode
     BS_WebKit,
+    BS_Haiku,
     /// Configure each individual brace in `BraceWrapping`.
     BS_Custom
   };
@@ -579,6 +580,16 @@ struct FormatStyle {
   ///       AfterClass: true
   /// \endcode
   struct BraceWrappingFlags {
+    /// \brief Wrap case and default blocks of a switch statement.
+    /// \code
+    ///   true:
+    ///   case foo:
+    ///   {
+    ///
+    ///   false:
+    ///   class foo: {
+    /// \endcode
+    bool AfterCase;
     /// \brief Wrap class definitions.
     /// \code
     ///   true:
