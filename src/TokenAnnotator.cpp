@@ -748,6 +748,10 @@ private:
         parseHasInclude();
       }
       break;
+    case tok::eof:
+      if (Tok->NewlinesBefore == 0)
+        Tok->NewlinesBefore = 1;
+      break;
     default:
       break;
     }
