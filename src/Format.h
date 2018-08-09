@@ -589,7 +589,7 @@ struct FormatStyle {
     ///   false:
     ///   class foo: {
     /// \endcode
-    bool AfterCase;
+    bool AfterCaseLabel;
     /// \brief Wrap class definitions.
     /// \code
     ///   true:

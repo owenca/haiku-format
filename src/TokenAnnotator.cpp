@@ -2683,7 +2683,7 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
       Line.First->isOneOf(tok::kw_case, tok::kw_default)) {
     FormatToken *Prev = Right.getPreviousNonComment();
     if (Prev && Prev->is(tok::colon))
-      return Style.BraceWrapping.AfterCase;
+      return Style.BraceWrapping.AfterCaseLabel;
   }
   if (isAllmanBrace(Left) || isAllmanBrace(Right))
     return (Line.startsWith(tok::kw_enum) && Style.BraceWrapping.AfterEnum) ||
