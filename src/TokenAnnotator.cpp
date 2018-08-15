@@ -1785,6 +1785,15 @@ void TokenAnnotator::annotate(AnnotatedLine &Line) {
 
   Line.First->SpacesRequiredBefore = 1;
   Line.First->CanBreakBefore = Line.First->MustBreakBefore;
+
+  static bool Comment = false;
+  if (Line.Last->is(tok::comment))
+    Comment = true;
+  else if (Comment)
+    Comment = false;
+  else if (Line.Level == 0 && !Line.First->IsFirst &&
+           Line.MightBeFunctionDecl && Line.mightBeFunctionDefinition())
+    Line.First->NewlinesBefore = 3;
 }
 
 // This function heuristically determines whether 'Current' starts the name of a
