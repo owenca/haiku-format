@@ -748,10 +748,6 @@ private:
         parseHasInclude();
       }
       break;
-    case tok::eof:
-      if (Tok->NewlinesBefore == 0)
-        Tok->NewlinesBefore = 1;
-      break;
     default:
       break;
     }
@@ -1786,8 +1782,14 @@ void TokenAnnotator::annotate(AnnotatedLine &Line) {
   Line.First->SpacesRequiredBefore = 1;
   Line.First->CanBreakBefore = Line.First->MustBreakBefore;
 
+  if (Line.First->is(tok::eof)) {
+    if (Line.First->NewlinesBefore == 0)
+      Line.First->NewlinesBefore = 1;
+    return;
+  }
+
   static bool Comment = false;
-  if (Line.Last->is(tok::comment))
+  if (Line.First->is(tok::comment))
     Comment = true;
   else if (Comment)
     Comment = false;
