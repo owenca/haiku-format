@@ -1782,7 +1782,7 @@ void TokenAnnotator::annotate(AnnotatedLine &Line) {
   Line.First->SpacesRequiredBefore = 1;
   Line.First->CanBreakBefore = Line.First->MustBreakBefore;
 
-  if (Line.First->is(tok::eof)) {
+  if (Line.Last->is(tok::eof)) {
     if (Line.First->NewlinesBefore == 0)
       Line.First->NewlinesBefore = 1;
     return;

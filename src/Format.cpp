@@ -958,6 +958,35 @@ std::string configurationAsText(const FormatStyle &Style) {
 
 namespace {
 
+class RedundantBracketsRemover : public TokenAnalyzer {
+public:
+  RedundantBracketsRemover(const Environment &Env, const FormatStyle &Style)
+      : TokenAnalyzer(Env, Style) {}
+
+  std::pair<tooling::Replacements, unsigned>
+  analyze(TokenAnnotator &Annotator,
+          SmallVectorImpl<AnnotatedLine *> &AnnotatedLines,
+          FormatTokenLexer &Tokens) override {
+    AffectedRangeMgr.computeAffectedLines(AnnotatedLines.begin(),
+                                          AnnotatedLines.end());
+    const SourceManager &SourceMgr = Env.getSourceManager();
+    tooling::Replacements Result;
+    for (auto &Line : AnnotatedLines) {
+      if (Line->Affected)
+        for (FormatToken *Token = Line->First; Token; Token = Token->Next)
+          if (Token->IsRedundant) {
+            auto Err = Result.add(tooling::Replacement(
+                SourceMgr, Token->Tok.getLocation(), 2, ""));
+            if (Err) {
+              llvm::errs() << llvm::toString(std::move(Err)) << "\n";
+              assert(false);
+            }
+          }
+    }
+    return {Result, 0};
+  }
+};
+
 class JavaScriptRequoter : public TokenAnalyzer {
 public:
   JavaScriptRequoter(const Environment &Env, const FormatStyle &Style)
@@ -2010,7 +2039,11 @@ reformat(const FormatStyle &Style, StringRef Code,
   typedef std::function<std::pair<tooling::Replacements, unsigned>(
       const Environment &)>
       AnalyzerPass;
-  SmallVector<AnalyzerPass, 4> Passes;
+  SmallVector<AnalyzerPass, 5> Passes;
+
+  Passes.emplace_back([&](const Environment &Env) {
+    return RedundantBracketsRemover(Env, Expanded).process();
+  });
 
   if (Style.Language == FormatStyle::LK_Cpp) {
     if (Style.FixNamespaceComments)
