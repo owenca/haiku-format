@@ -971,7 +971,7 @@ public:
                                           AnnotatedLines.end());
     const SourceManager &SourceMgr = Env.getSourceManager();
     tooling::Replacements Result;
-    for (auto &Line : AnnotatedLines) {
+    for (auto &Line : AnnotatedLines)
       if (Line->Affected)
         for (FormatToken *Token = Line->First; Token; Token = Token->Next)
           if (Token->IsRedundant) {
@@ -982,7 +982,6 @@ public:
               assert(false);
             }
           }
-    }
     return {Result, 0};
   }
 };

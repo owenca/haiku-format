@@ -531,8 +531,6 @@ void UnwrappedLineParser::parseBlock(bool MustBeDeclaration, bool AddLevel,
     ++Line->Level;
 
   const int StatementCount = parseLevel(/*HasOpeningBrace=*/true);
-  if (IsControlStatement && LeftBrace && StatementCount == 1)
-    LeftBrace->IsRedundant = true;
 
   if (eof())
     return;
@@ -546,8 +544,20 @@ void UnwrappedLineParser::parseBlock(bool MustBeDeclaration, bool AddLevel,
 
   size_t PPEndHash = computePPHash();
 
-  if (LeftBrace->IsRedundant && FormatTok->is(tok::r_brace))
-  	FormatTok->IsRedundant = true;
+  if (IsControlStatement && LeftBrace && FormatTok->is(tok::r_brace))
+    switch (StatementCount) {
+    case -1: {
+      size_t NextNonComment = Tokens->getPosition() + 1;
+      while (AllTokens[NextNonComment]->is(tok::comment))
+        ++NextNonComment;
+      if (AllTokens[NextNonComment]->is(tok::kw_else))
+        break;
+      LLVM_FALLTHROUGH;
+    }
+    case 1:
+      LeftBrace->IsRedundant = true;
+      FormatTok->IsRedundant = true;
+    }
 
   // Munch the closing brace.
   nextToken(/*LevelDifference=*/AddLevel ? -1 : 0);

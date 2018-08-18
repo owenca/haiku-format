@@ -1783,8 +1783,8 @@ void TokenAnnotator::annotate(AnnotatedLine &Line) {
   Line.First->CanBreakBefore = Line.First->MustBreakBefore;
 
   if (Line.Last->is(tok::eof)) {
-    if (Line.First->NewlinesBefore == 0)
-      Line.First->NewlinesBefore = 1;
+    if (Line.Last->NewlinesBefore == 0)
+      Line.Last->NewlinesBefore = 1;
     return;
   }
 
