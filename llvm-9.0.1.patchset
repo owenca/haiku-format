@@ -1,0 +1,25 @@
+From c1646fd8f77d5e0e3af541b1e5183884b6b81529 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Duval?= <jerome.duval@gmail.com>
+Date: Thu, 16 Jan 2020 20:42:02 +0100
+Subject: [PATCH] Haiku patch
+
+---
+ lib/Support/Unix/Path.inc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/Support/Unix/Path.inc b/lib/Support/Unix/Path.inc
+index 27c8a1bc..803cbde5 100644
+--- a/lib/Support/Unix/Path.inc
++++ b/lib/Support/Unix/Path.inc
+@@ -418,7 +418,7 @@ static bool is_local_impl(struct STATVFS &Vfs) {
+   default:
+     return true;
+   }
+-#elif defined(__CYGWIN__)
++#elif defined(__CYGWIN__) || defined(__HAIKU__)
+   // Cygwin doesn't expose this information; would need to use Win32 API.
+   return false;
+ #elif defined(__Fuchsia__)
+-- 
+2.20.1
+
