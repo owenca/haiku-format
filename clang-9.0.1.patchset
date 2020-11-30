@@ -1,0 +1,761 @@
+From 5f3df7c6887815162d962a9727b584c0f33e47ce Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=A9r=C3=B4me=20Duval?= <jerome.duval@gmail.com>
+Date: Thu, 16 Jan 2020 21:23:25 +0100
+Subject: [PATCH] Haiku formatter ported from 6.0.1
+
+---
+ include/clang/Format/Format.h       |  13 +++
+ lib/Format/ContinuationIndenter.cpp |   6 +-
+ lib/Format/Format.cpp               |  81 ++++++++++++++++-
+ lib/Format/FormatToken.h            |   2 +
+ lib/Format/TokenAnnotator.cpp       |  26 ++++++
+ lib/Format/UnwrappedLineParser.cpp  | 132 +++++++++++++++++-----------
+ lib/Format/UnwrappedLineParser.h    |   8 +-
+ 7 files changed, 207 insertions(+), 61 deletions(-)
+
+diff --git a/include/clang/Format/Format.h b/include/clang/Format/Format.h
+index 6388e4fc..82471968 100644
+--- a/include/clang/Format/Format.h
++++ b/include/clang/Format/Format.h
+@@ -722,6 +722,7 @@ struct FormatStyle {
+     ///   enum X : int { A, B };
+     /// \endcode
+     BS_WebKit,
++    BS_Haiku,
+     /// Configure each individual brace in `BraceWrapping`.
+     BS_Custom
+   };
+@@ -969,6 +970,14 @@ struct FormatStyle {
+ 
+   /// Different ways to break initializers.
+   enum BreakConstructorInitializersStyle {
++    /// Break constructor initializers before/after the colon and after commas.
++    /// \code
++    /// Constructor()
++    ///     :
++    ///     initializer1(),
++    ///     initializer2()
++    /// \endcode
++    BCIS_Haiku,
+     /// Break constructor initializers before the colon and after the commas.
+     /// \code
+     ///    Constructor()
+@@ -2072,6 +2081,10 @@ FormatStyle getWebKitStyle();
+ /// http://www.gnu.org/prep/standards/standards.html
+ FormatStyle getGNUStyle();
+ 
++/// \brief Returns a format style complying with Haiku's coding guidelines:
++/// http://www.haiku-os.org/development/coding-guidelines
++FormatStyle getHaikuStyle();
++
+ /// Returns style indicating formatting should be not applied at all.
+ FormatStyle getNoStyle();
+ 
+diff --git a/lib/Format/ContinuationIndenter.cpp b/lib/Format/ContinuationIndenter.cpp
+index b04ede6f..dc858f17 100644
+--- a/lib/Format/ContinuationIndenter.cpp
++++ b/lib/Format/ContinuationIndenter.cpp
+@@ -1120,9 +1120,9 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
+     //       ^ line up here.
+     State.Stack.back().Indent =
+         State.Column +
+-        (Style.BreakConstructorInitializers == FormatStyle::BCIS_BeforeComma
+-             ? 0
+-             : 2);
++        (Style.BreakConstructorInitializers == FormatStyle::BCIS_BeforeColon
++             ? 2
++             : 0);
+     State.Stack.back().NestedBlockIndent = State.Stack.back().Indent;
+     if (Style.ConstructorInitializerAllOnOneLineOrOnePerLine) {
+       State.Stack.back().AvoidBinPacking = true;
+diff --git a/lib/Format/Format.cpp b/lib/Format/Format.cpp
+index c4818297..ae2539e3 100644
+--- a/lib/Format/Format.cpp
++++ b/lib/Format/Format.cpp
+@@ -157,6 +157,7 @@ template <> struct ScalarEnumerationTraits<FormatStyle::BraceBreakingStyle> {
+     IO.enumCase(Value, "Allman", FormatStyle::BS_Allman);
+     IO.enumCase(Value, "GNU", FormatStyle::BS_GNU);
+     IO.enumCase(Value, "WebKit", FormatStyle::BS_WebKit);
++    IO.enumCase(Value, "Haiku", FormatStyle::BS_Haiku);
+     IO.enumCase(Value, "Custom", FormatStyle::BS_Custom);
+   }
+ };
+@@ -165,6 +166,7 @@ template <>
+ struct ScalarEnumerationTraits<FormatStyle::BreakConstructorInitializersStyle> {
+   static void
+   enumeration(IO &IO, FormatStyle::BreakConstructorInitializersStyle &Value) {
++    IO.enumCase(Value, "Haiku", FormatStyle::BCIS_Haiku);
+     IO.enumCase(Value, "BeforeColon", FormatStyle::BCIS_BeforeColon);
+     IO.enumCase(Value, "BeforeComma", FormatStyle::BCIS_BeforeComma);
+     IO.enumCase(Value, "AfterColon", FormatStyle::BCIS_AfterColon);
+@@ -651,6 +653,13 @@ static FormatStyle expandPresets(const FormatStyle &Style) {
+   case FormatStyle::BS_WebKit:
+     Expanded.BraceWrapping.AfterFunction = true;
+     break;
++  case FormatStyle::BS_Haiku:
++    Expanded.BraceWrapping.AfterCaseLabel = true;
++    Expanded.BraceWrapping.AfterClass = true;
++    Expanded.BraceWrapping.AfterFunction = true;
++    Expanded.BraceWrapping.AfterExternBlock = true;
++    Expanded.BraceWrapping.BeforeCatch = true;
++    break;
+   default:
+     break;
+   }
+@@ -1022,6 +1031,39 @@ FormatStyle getMicrosoftStyle(FormatStyle::LanguageKind Language) {
+   return Style;
+ }
+ 
++FormatStyle getHaikuStyle() {
++  FormatStyle Style = getLLVMStyle();
++  Style.AccessModifierOffset = -4;
++  Style.AlignEscapedNewlines = FormatStyle::ENAS_DontAlign;
++  Style.AlignAfterOpenBracket = FormatStyle::BAS_DontAlign;
++  Style.AlignOperands = false;
++  Style.AlignTrailingComments = false;
++  Style.AllowAllParametersOfDeclarationOnNextLine = false;
++  Style.AllowShortFunctionsOnASingleLine = FormatStyle::SFS_InlineOnly;
++  Style.AlwaysBreakAfterReturnType = FormatStyle::RTBS_TopLevelDefinitions;
++  Style.AlwaysBreakAfterDefinitionReturnType = FormatStyle::DRTBS_TopLevel;
++  Style.BreakBeforeBinaryOperators = FormatStyle::BOS_All;
++  Style.BreakBeforeBraces = FormatStyle::BS_Haiku;
++  Style.BreakConstructorInitializers = FormatStyle::BCIS_Haiku;
++/*
++  Style.CommentPragmas = "^ IWYU pragma:";
++  Style.IncludeCategories = {{"^\"(llvm|llvm-c|clang|clang-c)/", 2},
++                                 {"^(<|\"(gtest|gmock|isl|json)/)", 3},
++                                 {".*", 1}};
++  Style.IncludeIsMainRegex = "(Test)?$";
++  Style.IncludeBlocks = FormatStyle::IBS_Regroup;
++*/
++  Style.IndentCaseLabels = true;
++  Style.IndentWidth = 4;
++  Style.TabWidth = 4;
++  Style.MaxEmptyLinesToKeep = 2;
++  Style.PointerAlignment = FormatStyle::PAS_Left;
++  Style.UseTab = FormatStyle::UT_Always;
++  Style.SpaceAfterCStyleCast = true;
++  Style.SpaceAfterTemplateKeyword = false;
++  return Style;
++}
++
+ FormatStyle getNoStyle() {
+   FormatStyle NoStyle = getLLVMStyle();
+   NoStyle.DisableFormat = true;
+@@ -1046,6 +1088,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
+     *Style = getGNUStyle();
+   } else if (Name.equals_lower("microsoft")) {
+     *Style = getMicrosoftStyle(Language);
++  } else if (Name.equals_lower("haiku")) {
++    *Style = getHaikuStyle();
+   } else if (Name.equals_lower("none")) {
+     *Style = getNoStyle();
+   } else {
+@@ -1153,6 +1197,33 @@ FormatStyle::GetLanguageStyle(FormatStyle::LanguageKind Language) const {
+ 
+ namespace {
+ 
++class RedundantBracketsRemover : public TokenAnalyzer {
++public:
++  RedundantBracketsRemover(const Environment &Env, const FormatStyle &Style)
++      : TokenAnalyzer(Env, Style) {}
++
++  std::pair<tooling::Replacements, unsigned>
++  analyze(TokenAnnotator &Annotator,
++          SmallVectorImpl<AnnotatedLine *> &AnnotatedLines,
++          FormatTokenLexer &Tokens) override {
++    AffectedRangeMgr.computeAffectedLines(AnnotatedLines);
++    const SourceManager &SourceMgr = Env.getSourceManager();
++    tooling::Replacements Result;
++    for (auto &Line : AnnotatedLines)
++      if (Line->Affected)
++        for (FormatToken *Token = Line->First; Token; Token = Token->Next)
++          if (Token->IsRedundant) {
++            auto Err = Result.add(tooling::Replacement(
++                SourceMgr, Token->Tok.getLocation(), 2, ""));
++            if (Err) {
++              llvm::errs() << llvm::toString(std::move(Err)) << "\n";
++              assert(false);
++            }
++          }
++    return {Result, 0};
++  }
++};
++
+ class JavaScriptRequoter : public TokenAnalyzer {
+ public:
+   JavaScriptRequoter(const Environment &Env, const FormatStyle &Style)
+@@ -2263,7 +2334,11 @@ reformat(const FormatStyle &Style, StringRef Code,
+   typedef std::function<std::pair<tooling::Replacements, unsigned>(
+       const Environment &)>
+       AnalyzerPass;
+-  SmallVector<AnalyzerPass, 4> Passes;
++  SmallVector<AnalyzerPass, 5> Passes;
++
++  Passes.emplace_back([&](const Environment &Env) {
++    return RedundantBracketsRemover(Env, Expanded).process();
++  });
+ 
+   if (Style.Language == FormatStyle::LK_Cpp) {
+     if (Style.FixNamespaceComments)
+@@ -2381,7 +2456,7 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
+ 
+ const char *StyleOptionHelpDescription =
+     "Coding style, currently supports:\n"
+-    "  LLVM, Google, Chromium, Mozilla, WebKit.\n"
++    "  LLVM, Google, Chromium, Mozilla, WebKit, Haiku.\n"
+     "Use -style=file to load style configuration from\n"
+     ".clang-format file located in one of the parent\n"
+     "directories of the source file (or current\n"
+@@ -2432,7 +2507,7 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
+ 
+ const char *DefaultFormatStyle = "file";
+ 
+-const char *DefaultFallbackStyle = "LLVM";
++const char *DefaultFallbackStyle = "Haiku";
+ 
+ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+                                      StringRef FallbackStyleName,
+diff --git a/lib/Format/FormatToken.h b/lib/Format/FormatToken.h
+index df749374..ec0ea037 100644
+--- a/lib/Format/FormatToken.h
++++ b/lib/Format/FormatToken.h
+@@ -182,6 +182,8 @@ struct FormatToken {
+   /// Contains the kind of block if this token is a brace.
+   BraceBlockKind BlockKind = BK_Unknown;
+ 
++  bool IsRedundant = false;
++
+   TokenType Type = TT_Unknown;
+ 
+   /// The number of spaces that should be inserted before this token.
+diff --git a/lib/Format/TokenAnnotator.cpp b/lib/Format/TokenAnnotator.cpp
+index 490c4f46..e2f29d7a 100644
+--- a/lib/Format/TokenAnnotator.cpp
++++ b/lib/Format/TokenAnnotator.cpp
+@@ -2036,6 +2036,21 @@ void TokenAnnotator::annotate(AnnotatedLine &Line) {
+ 
+   Line.First->SpacesRequiredBefore = 1;
+   Line.First->CanBreakBefore = Line.First->MustBreakBefore;
++
++  if (Line.Last->is(tok::eof)) {
++    if (Line.Last->NewlinesBefore == 0)
++      Line.Last->NewlinesBefore = 1;
++    return;
++  }
++
++  static bool Comment = false;
++  if (Line.First->is(tok::comment))
++    Comment = true;
++  else if (Comment)
++    Comment = false;
++  else if (Line.Level == 0 && !Line.First->IsFirst &&
++           Line.MightBeFunctionDecl && Line.mightBeFunctionDefinition())
++    Line.First->NewlinesBefore = 3;
+ }
+ 
+ // This function heuristically determines whether 'Current' starts the name of a
+@@ -3006,6 +3021,11 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
+       Right.Previous->MatchingParen->NestingLevel == 0 &&
+       Style.AlwaysBreakTemplateDeclarations == FormatStyle::BTDS_Yes)
+     return true;
++  if (Style.BreakConstructorInitializers == FormatStyle::BCIS_Haiku &&
++      Left.NestingLevel == 0 && Line.Level == 0 &&
++      Style.AllowShortFunctionsOnASingleLine & FormatStyle::SFS_InlineOnly &&
++      Left.isOneOf(TT_CtorInitializerColon, TT_CtorInitializerComma))
++    return true;
+   if (Right.is(TT_CtorInitializerComma) &&
+       Style.BreakConstructorInitializers == FormatStyle::BCIS_BeforeComma &&
+       !Style.ConstructorInitializerAllOnOneLineOrOnePerLine)
+@@ -3033,6 +3053,12 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
+   }
+   if (Right.is(TT_InlineASMBrace))
+     return Right.HasUnescapedNewline;
++  if (Right.is(tok::l_brace) && Right.BlockKind == BK_Block &&
++      Line.First->isOneOf(tok::kw_case, tok::kw_default)) {
++    FormatToken *Prev = Right.getPreviousNonComment();
++    if (Prev && Prev->is(tok::colon))
++      return Style.BraceWrapping.AfterCaseLabel;
++  }
+   if (isAllmanBrace(Left) || isAllmanBrace(Right))
+     return (Line.startsWith(tok::kw_enum) && Style.BraceWrapping.AfterEnum) ||
+            (Line.startsWith(tok::kw_typedef, tok::kw_enum) &&
+diff --git a/lib/Format/UnwrappedLineParser.cpp b/lib/Format/UnwrappedLineParser.cpp
+index a35e98ae..6f06e299 100644
+--- a/lib/Format/UnwrappedLineParser.cpp
++++ b/lib/Format/UnwrappedLineParser.cpp
+@@ -324,7 +324,9 @@ void UnwrappedLineParser::parseFile() {
+   addUnwrappedLine();
+ }
+ 
+-void UnwrappedLineParser::parseLevel(bool HasOpeningBrace) {
++int UnwrappedLineParser::parseLevel(bool HasOpeningBrace) {
++  int StatementCount = 0;
++  bool IsIfWithoutElse = false;
+   bool SwitchLabelEncountered = false;
+   do {
+     tok::TokenKind kind = FormatTok->Tok.getKind();
+@@ -349,7 +351,7 @@ void UnwrappedLineParser::parseLevel(bool HasOpeningBrace) {
+       break;
+     case tok::r_brace:
+       if (HasOpeningBrace)
+-        return;
++        return IsIfWithoutElse ? -1 : StatementCount;
+       nextToken();
+       addUnwrappedLine();
+       break;
+@@ -383,10 +385,13 @@ void UnwrappedLineParser::parseLevel(bool HasOpeningBrace) {
+       parseStructuralElement();
+       break;
+     default:
+-      parseStructuralElement();
++      IsIfWithoutElse = parseStructuralElement();
++      ++StatementCount;
+       break;
+     }
+   } while (!eof());
++
++  return StatementCount;
+ }
+ 
+ void UnwrappedLineParser::calculateBraceTypes(bool ExpectClassBody) {
+@@ -532,11 +537,12 @@ size_t UnwrappedLineParser::computePPHash() const {
+ }
+ 
+ void UnwrappedLineParser::parseBlock(bool MustBeDeclaration, bool AddLevel,
+-                                     bool MunchSemi) {
++                                     bool MunchSemi, bool IsControlStatement) {
+   assert(FormatTok->isOneOf(tok::l_brace, TT_MacroBlockBegin) &&
+          "'{' or macro block token expected");
+   const bool MacroBlock = FormatTok->is(TT_MacroBlockBegin);
+   FormatTok->BlockKind = BK_Block;
++  FormatToken *LeftBrace = FormatTok->is(tok::l_brace) ? FormatTok : nullptr;
+ 
+   size_t PPStartHash = computePPHash();
+ 
+@@ -558,7 +564,8 @@ void UnwrappedLineParser::parseBlock(bool MustBeDeclaration, bool AddLevel,
+                                           MustBeDeclaration);
+   if (AddLevel)
+     ++Line->Level;
+-  parseLevel(/*HasOpeningBrace=*/true);
++
++  const int StatementCount = parseLevel(/*HasOpeningBrace=*/true);
+ 
+   if (eof())
+     return;
+@@ -572,6 +579,21 @@ void UnwrappedLineParser::parseBlock(bool MustBeDeclaration, bool AddLevel,
+ 
+   size_t PPEndHash = computePPHash();
+ 
++  if (IsControlStatement && LeftBrace && FormatTok->is(tok::r_brace))
++    switch (StatementCount) {
++    case -1: {
++      size_t NextNonComment = Tokens->getPosition() + 1;
++      while (AllTokens[NextNonComment]->is(tok::comment))
++        ++NextNonComment;
++      if (AllTokens[NextNonComment]->is(tok::kw_else))
++        break;
++      LLVM_FALLTHROUGH;
++    }
++    case 1:
++      LeftBrace->IsRedundant = true;
++      FormatTok->IsRedundant = true;
++    }
++
+   // Munch the closing brace.
+   nextToken(/*LevelDifference=*/AddLevel ? -1 : 0);
+ 
+@@ -971,7 +993,7 @@ void UnwrappedLineParser::readTokenWithJavaScriptASI() {
+     return addUnwrappedLine();
+ }
+ 
+-void UnwrappedLineParser::parseStructuralElement() {
++bool UnwrappedLineParser::parseStructuralElement() {
+   assert(!FormatTok->is(tok::l_brace));
+   if (Style.Language == FormatStyle::LK_TableGen &&
+       FormatTok->is(tok::pp_include)) {
+@@ -979,7 +1001,7 @@ void UnwrappedLineParser::parseStructuralElement() {
+     if (FormatTok->is(tok::string_literal))
+       nextToken();
+     addUnwrappedLine();
+-    return;
++    return false;
+   }
+   switch (FormatTok->Tok.getKind()) {
+   case tok::kw_asm:
+@@ -1001,7 +1023,7 @@ void UnwrappedLineParser::parseStructuralElement() {
+     break;
+   case tok::kw_namespace:
+     parseNamespace();
+-    return;
++    return false;
+   case tok::kw_public:
+   case tok::kw_protected:
+   case tok::kw_private:
+@@ -1010,23 +1032,22 @@ void UnwrappedLineParser::parseStructuralElement() {
+       nextToken();
+     else
+       parseAccessSpecifier();
+-    return;
++    return false;
+   case tok::kw_if:
+-    parseIfThenElse();
+-    return;
++    return parseIfThenElse();
+   case tok::kw_for:
+   case tok::kw_while:
+     parseForOrWhileLoop();
+-    return;
++    return false;
+   case tok::kw_do:
+     parseDoWhile();
+-    return;
++    return false;
+   case tok::kw_switch:
+     if (Style.Language == FormatStyle::LK_JavaScript && Line->MustBeDeclaration)
+       // 'switch: string' field declaration.
+       break;
+     parseSwitch();
+-    return;
++    return false;
+   case tok::kw_default:
+     if (Style.Language == FormatStyle::LK_JavaScript && Line->MustBeDeclaration)
+       // 'default: string' field declaration.
+@@ -1034,7 +1055,7 @@ void UnwrappedLineParser::parseStructuralElement() {
+     nextToken();
+     if (FormatTok->is(tok::colon)) {
+       parseLabel();
+-      return;
++      return false;
+     }
+     // e.g. "default void f() {}" in a Java interface.
+     break;
+@@ -1043,11 +1064,11 @@ void UnwrappedLineParser::parseStructuralElement() {
+       // 'case: string' field declaration.
+       break;
+     parseCaseLabel();
+-    return;
++    return false;
+   case tok::kw_try:
+   case tok::kw___try:
+     parseTryCatch();
+-    return;
++    return false;
+   case tok::kw_extern:
+     nextToken();
+     if (FormatTok->Tok.is(tok::string_literal)) {
+@@ -1060,14 +1081,14 @@ void UnwrappedLineParser::parseStructuralElement() {
+           parseBlock(/*MustBeDeclaration=*/true, /*AddLevel=*/false);
+         }
+         addUnwrappedLine();
+-        return;
++        return false;
+       }
+     }
+     break;
+   case tok::kw_export:
+     if (Style.Language == FormatStyle::LK_JavaScript) {
+       parseJavaScriptEs6ImportExport();
+-      return;
++      return false;
+     }
+     if (!Style.isCpp())
+       break;
+@@ -1077,35 +1098,35 @@ void UnwrappedLineParser::parseStructuralElement() {
+     nextToken();
+     if (FormatTok->Tok.is(tok::kw_namespace)) {
+       parseNamespace();
+-      return;
++      return false;
+     }
+     break;
+   case tok::identifier:
+     if (FormatTok->is(TT_ForEachMacro)) {
+       parseForOrWhileLoop();
+-      return;
++      return false;
+     }
+     if (FormatTok->is(TT_MacroBlockBegin)) {
+       parseBlock(/*MustBeDeclaration=*/false, /*AddLevel=*/true,
+                  /*MunchSemi=*/false);
+-      return;
++      return false;
+     }
+     if (FormatTok->is(Keywords.kw_import)) {
+       if (Style.Language == FormatStyle::LK_JavaScript) {
+         parseJavaScriptEs6ImportExport();
+-        return;
++        return false;
+       }
+       if (Style.Language == FormatStyle::LK_Proto) {
+         nextToken();
+         if (FormatTok->is(tok::kw_public))
+           nextToken();
+         if (!FormatTok->is(tok::string_literal))
+-          return;
++          return false;
+         nextToken();
+         if (FormatTok->is(tok::semi))
+           nextToken();
+         addUnwrappedLine();
+-        return;
++        return false;
+       }
+     }
+     if (Style.isCpp() &&
+@@ -1115,16 +1136,16 @@ void UnwrappedLineParser::parseStructuralElement() {
+       if (FormatTok->is(tok::colon)) {
+         nextToken();
+         addUnwrappedLine();
+-        return;
++        return false;
+       }
+     }
+     if (Style.isCpp() && FormatTok->is(TT_StatementMacro)) {
+       parseStatementMacro();
+-      return;
++      return false;
+     }
+     if (Style.isCpp() && FormatTok->is(TT_NamespaceMacro)) {
+       parseNamespace();
+-      return;
++      return false;
+     }
+     // In all other cases, parse the declaration.
+     break;
+@@ -1150,21 +1171,23 @@ void UnwrappedLineParser::parseStructuralElement() {
+       case tok::objc_protected:
+       case tok::objc_package:
+       case tok::objc_private:
+-        return parseAccessSpecifier();
++        parseAccessSpecifier();
++		return false;
+       case tok::objc_interface:
+       case tok::objc_implementation:
+-        return parseObjCInterfaceOrImplementation();
++        parseObjCInterfaceOrImplementation();
++		return false;
+       case tok::objc_protocol:
+         if (parseObjCProtocol())
+-          return;
++          return false;
+         break;
+       case tok::objc_end:
+-        return; // Handled by the caller.
++        return false; // Handled by the caller.
+       case tok::objc_optional:
+       case tok::objc_required:
+         nextToken();
+         addUnwrappedLine();
+-        return;
++        return false;
+       case tok::objc_autoreleasepool:
+         nextToken();
+         if (FormatTok->Tok.is(tok::l_brace)) {
+@@ -1173,7 +1196,7 @@ void UnwrappedLineParser::parseStructuralElement() {
+           parseBlock(/*MustBeDeclaration=*/false);
+         }
+         addUnwrappedLine();
+-        return;
++        return false;
+       case tok::objc_synchronized:
+         nextToken();
+         if (FormatTok->Tok.is(tok::l_paren))
+@@ -1185,12 +1208,12 @@ void UnwrappedLineParser::parseStructuralElement() {
+           parseBlock(/*MustBeDeclaration=*/false);
+         }
+         addUnwrappedLine();
+-        return;
++        return false;
+       case tok::objc_try:
+         // This branch isn't strictly necessary (the kw_try case below would
+         // do this too after the tok::at is parsed above).  But be explicit.
+         parseTryCatch();
+-        return;
++        return false;
+       default:
+         break;
+       }
+@@ -1209,7 +1232,7 @@ void UnwrappedLineParser::parseStructuralElement() {
+       // This only applies for C++.
+       if (!Style.isCpp()) {
+         addUnwrappedLine();
+-        return;
++        return false;
+       }
+       break;
+     case tok::kw_typedef:
+@@ -1230,7 +1253,7 @@ void UnwrappedLineParser::parseStructuralElement() {
+         if (FormatTok->is(tok::semi))
+           nextToken();
+         addUnwrappedLine();
+-        return;
++        return false;
+       }
+       break;
+     case tok::period:
+@@ -1248,10 +1271,10 @@ void UnwrappedLineParser::parseStructuralElement() {
+     case tok::semi:
+       nextToken();
+       addUnwrappedLine();
+-      return;
++      return false;
+     case tok::r_brace:
+       addUnwrappedLine();
+-      return;
++      return false;
+     case tok::l_paren:
+       parseParens();
+       break;
+@@ -1281,7 +1304,7 @@ void UnwrappedLineParser::parseStructuralElement() {
+         FormatTok->Type = TT_FunctionLBrace;
+         parseBlock(/*MustBeDeclaration=*/false);
+         addUnwrappedLine();
+-        return;
++        return false;
+       }
+       // Otherwise this was a braced init list, and the structural
+       // element continues.
+@@ -1291,11 +1314,11 @@ void UnwrappedLineParser::parseStructuralElement() {
+       if (Style.BraceWrapping.AfterFunction)
+         addUnwrappedLine();
+       parseTryCatch();
+-      return;
++      return false;
+     case tok::identifier: {
+       if (FormatTok->is(TT_MacroBlockEnd)) {
+         addUnwrappedLine();
+-        return;
++        return false;
+       }
+ 
+       // Function declarations (as opposed to function expressions) are parsed
+@@ -1328,12 +1351,12 @@ void UnwrappedLineParser::parseStructuralElement() {
+         }
+         parseRecord();
+         addUnwrappedLine();
+-        return;
++        return false;
+       }
+ 
+       if (Style.isCpp() && FormatTok->is(TT_StatementMacro)) {
+         parseStatementMacro();
+-        return;
++        return false;
+       }
+ 
+       // See if the following token should start a new unwrapped line.
+@@ -1351,7 +1374,7 @@ void UnwrappedLineParser::parseStructuralElement() {
+         if (FormatTok->Tok.is(tok::colon) && !Line->MustBeDeclaration) {
+           Line->Tokens.begin()->Tok->MustBreakBefore = true;
+           parseLabel();
+-          return;
++          return false;
+         }
+         // Recognize function-like macro usages without trailing semicolon as
+         // well as free-standing macros like Q_OBJECT.
+@@ -1367,7 +1390,7 @@ void UnwrappedLineParser::parseStructuralElement() {
+         if (FollowedByNewline && (Text.size() >= 5 || FunctionLike) &&
+             tokenCanStartNewLine(FormatTok->Tok) && Text == Text.upper()) {
+           addUnwrappedLine();
+-          return;
++          return false;
+         }
+       }
+       break;
+@@ -1405,6 +1428,8 @@ void UnwrappedLineParser::parseStructuralElement() {
+       break;
+     }
+   } while (!eof());
++
++  return false;
+ }
+ 
+ bool UnwrappedLineParser::tryToParseLambda() {
+@@ -1752,7 +1777,7 @@ void UnwrappedLineParser::parseSquare(bool LambdaIntroducer) {
+   } while (!eof());
+ }
+ 
+-void UnwrappedLineParser::parseIfThenElse() {
++bool UnwrappedLineParser::parseIfThenElse() {
+   assert(FormatTok->Tok.is(tok::kw_if) && "'if' expected");
+   nextToken();
+   if (FormatTok->Tok.is(tok::kw_constexpr))
+@@ -1762,7 +1787,7 @@ void UnwrappedLineParser::parseIfThenElse() {
+   bool NeedsUnwrappedLine = false;
+   if (FormatTok->Tok.is(tok::l_brace)) {
+     CompoundStatementIndenter Indenter(this, Style, Line->Level);
+-    parseBlock(/*MustBeDeclaration=*/false);
++    parseBlock(/*MustBeDeclaration=*/false, true, true, true);
+     if (Style.BraceWrapping.BeforeElse)
+       addUnwrappedLine();
+     else
+@@ -1773,11 +1798,14 @@ void UnwrappedLineParser::parseIfThenElse() {
+     parseStructuralElement();
+     --Line->Level;
+   }
++
++  bool IsIfWithoutElse = true;
+   if (FormatTok->Tok.is(tok::kw_else)) {
++  	IsIfWithoutElse = false;
+     nextToken();
+     if (FormatTok->Tok.is(tok::l_brace)) {
+       CompoundStatementIndenter Indenter(this, Style, Line->Level);
+-      parseBlock(/*MustBeDeclaration=*/false);
++      parseBlock(/*MustBeDeclaration=*/false, true, true, true);
+       addUnwrappedLine();
+     } else if (FormatTok->Tok.is(tok::kw_if)) {
+       parseIfThenElse();
+@@ -1792,6 +1820,8 @@ void UnwrappedLineParser::parseIfThenElse() {
+   } else if (NeedsUnwrappedLine) {
+     addUnwrappedLine();
+   }
++
++  return IsIfWithoutElse;
+ }
+ 
+ void UnwrappedLineParser::parseTryCatch() {
+@@ -1929,7 +1959,7 @@ void UnwrappedLineParser::parseForOrWhileLoop() {
+     parseParens();
+   if (FormatTok->Tok.is(tok::l_brace)) {
+     CompoundStatementIndenter Indenter(this, Style, Line->Level);
+-    parseBlock(/*MustBeDeclaration=*/false);
++    parseBlock(/*MustBeDeclaration=*/false, true, true, true);
+     addUnwrappedLine();
+   } else {
+     addUnwrappedLine();
+diff --git a/lib/Format/UnwrappedLineParser.h b/lib/Format/UnwrappedLineParser.h
+index e1b35317..63b0dcac 100644
+--- a/lib/Format/UnwrappedLineParser.h
++++ b/lib/Format/UnwrappedLineParser.h
+@@ -84,9 +84,9 @@ public:
+ private:
+   void reset();
+   void parseFile();
+-  void parseLevel(bool HasOpeningBrace);
++  int parseLevel(bool HasOpeningBrace);
+   void parseBlock(bool MustBeDeclaration, bool AddLevel = true,
+-                  bool MunchSemi = true);
++                  bool MunchSemi = true, bool IsControlStatement = false);
+   void parseChildBlock();
+   void parsePPDirective();
+   void parsePPDefine();
+@@ -96,13 +96,13 @@ private:
+   void parsePPEndIf();
+   void parsePPUnknown();
+   void readTokenWithJavaScriptASI();
+-  void parseStructuralElement();
++  bool parseStructuralElement();
+   bool tryToParseBracedList();
+   bool parseBracedList(bool ContinueOnSemicolons = false,
+                        tok::TokenKind ClosingBraceKind = tok::r_brace);
+   void parseParens();
+   void parseSquare(bool LambdaIntroducer = false);
+-  void parseIfThenElse();
++  bool parseIfThenElse();
+   void parseTryCatch();
+   void parseForOrWhileLoop();
+   void parseDoWhile();
+-- 
+2.20.1
+
