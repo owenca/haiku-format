@@ -12,10 +12,26 @@ index 2ff6e5ec234..036c34260be 100644
               : 2);
      State.Stack.back().NestedBlockIndent = State.Stack.back().Indent;
 diff --git a/clang/lib/Format/TokenAnnotator.cpp b/clang/lib/Format/TokenAnnotator.cpp
-index 8cb786a4d34..490b07a5894 100644
+index 8cb786a4d34..4b30f689f5b 100644
 --- a/clang/lib/Format/TokenAnnotator.cpp
 +++ b/clang/lib/Format/TokenAnnotator.cpp
-@@ -3224,6 +3224,9 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
+@@ -2146,6 +2146,15 @@ void TokenAnnotator::annotate(AnnotatedLine &Line) {
+ 
+   Line.First->SpacesRequiredBefore = 1;
+   Line.First->CanBreakBefore = Line.First->MustBreakBefore;
++
++  static bool Comment = false;
++  if (Line.First->is(tok::comment))
++    Comment = true;
++  else if (Comment)
++    Comment = false;
++  else if (Line.Level == 0 && !Line.First->IsFirst &&
++           Line.MightBeFunctionDecl && Line.mightBeFunctionDefinition())
++	Line.First->NewlinesBefore = 3;
+ }
+ 
+ // This function heuristically determines whether 'Current' starts the name of a
+@@ -3224,6 +3233,9 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
        Right.Previous->MatchingParen->NestingLevel == 0 &&
        Style.AlwaysBreakTemplateDeclarations == FormatStyle::BTDS_Yes)
      return true;
