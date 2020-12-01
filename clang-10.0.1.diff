@@ -1,0 +1,40 @@
+diff --git a/clang/lib/Format/ContinuationIndenter.cpp b/clang/lib/Format/ContinuationIndenter.cpp
+index 2ff6e5ec234..036c34260be 100644
+--- a/clang/lib/Format/ContinuationIndenter.cpp
++++ b/clang/lib/Format/ContinuationIndenter.cpp
+@@ -1129,7 +1129,7 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
+     //       ^ line up here.
+     State.Stack.back().Indent =
+         State.Column +
+-        (Style.BreakConstructorInitializers == FormatStyle::BCIS_BeforeComma
++        (Style.BreakConstructorInitializers != FormatStyle::BCIS_AfterColon
+              ? 0
+              : 2);
+     State.Stack.back().NestedBlockIndent = State.Stack.back().Indent;
+diff --git a/clang/lib/Format/TokenAnnotator.cpp b/clang/lib/Format/TokenAnnotator.cpp
+index 8cb786a4d34..490b07a5894 100644
+--- a/clang/lib/Format/TokenAnnotator.cpp
++++ b/clang/lib/Format/TokenAnnotator.cpp
+@@ -3224,6 +3224,9 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
+       Right.Previous->MatchingParen->NestingLevel == 0 &&
+       Style.AlwaysBreakTemplateDeclarations == FormatStyle::BTDS_Yes)
+     return true;
++  if (Left.NestingLevel == 0 &&
++      Left.isOneOf(TT_CtorInitializerColon, TT_CtorInitializerComma))
++    return true;
+   if (Right.is(TT_CtorInitializerComma) &&
+       Style.BreakConstructorInitializers == FormatStyle::BCIS_BeforeComma &&
+       !Style.ConstructorInitializerAllOnOneLineOrOnePerLine)
+diff --git a/clang/tools/clang-format/ClangFormat.cpp b/clang/tools/clang-format/ClangFormat.cpp
+index aa40bab52df..b1b071cfdd0 100644
+--- a/clang/tools/clang-format/ClangFormat.cpp
++++ b/clang/tools/clang-format/ClangFormat.cpp
+@@ -441,7 +441,7 @@ static bool format(StringRef FileName) {
+ } // namespace clang
+ 
+ static void PrintVersion(raw_ostream &OS) {
+-  OS << clang::getClangToolFullVersion("clang-format") << '\n';
++  OS << clang::getClangToolFullVersion("haiku-format") << '\n';
+ }
+ 
+ // Dump the configuration.

@@ -1,24 +1,34 @@
 #!/bin/bash -e
 
-llvmVersion=9.0.1
-wget -N https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvmVersion/llvm-$llvmVersion.src.tar.xz
-wget -N https://github.com/llvm/llvm-project/releases/download/llvmorg-$llvmVersion/clang-$llvmVersion.src.tar.xz
+option=-j
 
-mkdir -p llvm
-echo Extracting llvm ...
-tar xf llvm-$llvmVersion.src.tar.xz -C llvm --strip-components=1 --skip-old-files
-echo Patching llvm ...
-pushd llvm
-patch -p1 < ../llvm-$llvmVersion.patchset
-popd
+if [ $# -gt 1 -o $# -eq 1 -a "$1" != $option ]; then
+	echo Usage: $0 [$option]
+	exit 1
+fi
 
-mkdir -p llvm/tools/clang
-echo Extracting clang ...
-tar xf clang-$llvmVersion.src.tar.xz -C llvm/tools/clang --strip-components=1 --skip-old-files
-echo Patching clang ...
-pushd llvm/tools/clang
-patch -p1 < ../../../clang-$llvmVersion.patchset
-popd
+version=10.0.1
+prefix=https://github.com/llvm/llvm-project/releases/download/llvmorg-$version
+suffix=$version.src.tar.xz
+
+wget -N $prefix/llvm-$suffix
+wget -N $prefix/clang-$suffix
+
+extract()
+{
+	mkdir -p $1
+	echo Extracting $1 ...
+	tar xf $(basename $1)-$suffix -C $1 --strip-components=1 --skip-old-files
+}
+
+clangDir=llvm/tools/clang
+
+extract llvm
+extract $clangDir
+
+cd $clangDir
+patch -N -p2 -r - < ../../../clang-$version.diff
+cd -
 
 if [ -d build ]; then
 	cd build
@@ -28,5 +38,10 @@ else
 	cmake -DCMAKE_BUILD_TYPE=MinSizeRel -G "Unix Makefiles" ../llvm
 fi
 
-make -j$(nproc) clang-format
+if [ $# -eq 1 ]; then
+	make $option $(nproc) clang-format
+else
+	make clang-format
+fi
+
 ln -fs $PWD/bin/clang-format ../haiku-format
