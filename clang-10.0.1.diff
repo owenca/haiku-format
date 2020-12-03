@@ -21,6 +21,30 @@ index 2ff6e5ec234..573f26c511b 100644
               ? 0
               : 2);
      State.Stack.back().NestedBlockIndent = State.Stack.back().Indent;
+diff --git a/clang/lib/Format/Format.cpp b/clang/lib/Format/Format.cpp
+index f12bca48c63..f3cef557917 100644
+--- a/clang/lib/Format/Format.cpp
++++ b/clang/lib/Format/Format.cpp
+@@ -2534,7 +2534,7 @@ const char *StyleOptionHelpDescription =
+     "Coding style, currently supports:\n"
+     "  LLVM, Google, Chromium, Mozilla, WebKit.\n"
+     "Use -style=file to load style configuration from\n"
+-    ".clang-format file located in one of the parent\n"
++    ".haiku-format file located in one of the parent\n"
+     "directories of the source file (or current\n"
+     "directory for stdin).\n"
+     "Use -style=\"{key: value, ...}\" to set specific\n"
+@@ -2619,8 +2619,8 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+     return make_string_error(EC.message());
+
+   llvm::SmallVector<std::string, 2> FilesToLookFor;
+-  FilesToLookFor.push_back(".clang-format");
+-  FilesToLookFor.push_back("_clang-format");
++  FilesToLookFor.push_back(".haiku-format");
++  FilesToLookFor.push_back("_haiku-format");
+
+   for (StringRef Directory = Path; !Directory.empty();
+        Directory = llvm::sys::path::parent_path(Directory)) {
 diff --git a/clang/lib/Format/TokenAnnotator.cpp b/clang/lib/Format/TokenAnnotator.cpp
 index 8cb786a4d34..4b30f689f5b 100644
 --- a/clang/lib/Format/TokenAnnotator.cpp
