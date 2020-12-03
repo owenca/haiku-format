@@ -1,8 +1,18 @@
 diff --git a/clang/lib/Format/ContinuationIndenter.cpp b/clang/lib/Format/ContinuationIndenter.cpp
-index 2ff6e5ec234..036c34260be 100644
+index 2ff6e5ec234..573f26c511b 100644
 --- a/clang/lib/Format/ContinuationIndenter.cpp
 +++ b/clang/lib/Format/ContinuationIndenter.cpp
-@@ -1129,7 +1129,7 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
+@@ -758,6 +758,9 @@ unsigned ContinuationIndenter::addTokenOnNewLine(LineState &State,
+     Penalty += Style.PenaltyBreakFirstLessLess;
+
+   State.Column = getNewLineColumn(State);
++  if (State.Line->startsWith(tok::kw_for) && PreviousNonComment &&
++      PreviousNonComment->is(tok::semi))
++    State.Column -= State.Column % 4;
+
+   // Indent nested blocks relative to this column, unless in a very specific
+   // JavaScript special case where:
+@@ -1129,7 +1132,7 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
      //       ^ line up here.
      State.Stack.back().Indent =
          State.Column +
@@ -16,7 +26,7 @@ index 8cb786a4d34..4b30f689f5b 100644
 --- a/clang/lib/Format/TokenAnnotator.cpp
 +++ b/clang/lib/Format/TokenAnnotator.cpp
 @@ -2146,6 +2146,15 @@ void TokenAnnotator::annotate(AnnotatedLine &Line) {
- 
+
    Line.First->SpacesRequiredBefore = 1;
    Line.First->CanBreakBefore = Line.First->MustBreakBefore;
 +
@@ -29,7 +39,7 @@ index 8cb786a4d34..4b30f689f5b 100644
 +           Line.MightBeFunctionDecl && Line.mightBeFunctionDefinition())
 +	Line.First->NewlinesBefore = 3;
  }
- 
+
  // This function heuristically determines whether 'Current' starts the name of a
 @@ -3224,6 +3233,9 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
        Right.Previous->MatchingParen->NestingLevel == 0 &&
@@ -47,10 +57,10 @@ index aa40bab52df..b1b071cfdd0 100644
 +++ b/clang/tools/clang-format/ClangFormat.cpp
 @@ -441,7 +441,7 @@ static bool format(StringRef FileName) {
  } // namespace clang
- 
+
  static void PrintVersion(raw_ostream &OS) {
 -  OS << clang::getClangToolFullVersion("clang-format") << '\n';
 +  OS << clang::getClangToolFullVersion("haiku-format") << '\n';
  }
- 
+
  // Dump the configuration.
