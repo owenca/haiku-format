@@ -21,9 +21,13 @@ extract()
 	tar xf $(basename $1)-$suffix -C $1 --strip-components=1 --skip-old-files
 }
 
+extract llvm
+
+pattern='^--- a/clang'
+diffFile=clang-$version.diff
 clangDir=llvm/tools/clang
 
-extract llvm
+rm -fv $(grep "$pattern" $diffFile  | sed 's#'"$pattern"'#'"$clangDir"'#')
 extract $clangDir
 
 cd $clangDir
