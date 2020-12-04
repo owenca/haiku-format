@@ -27,11 +27,11 @@ pattern='^--- a/clang'
 diffFile=clang-$version.diff
 clangDir=llvm/tools/clang
 
-rm -fv $(grep "$pattern" $diffFile  | sed 's#'"$pattern"'#'"$clangDir"'#')
+rm -fv $(grep "$pattern" $diffFile  | sed 's#'"$pattern"'#'$clangDir'#')
 extract $clangDir
 
 cd $clangDir
-patch -N -p2 -r - < ../../../clang-$version.diff
+patch -N -p2 -r - < ../../../$diffFile
 cd -
 
 if [ -d build ]; then
@@ -47,5 +47,3 @@ if [ $# -eq 1 ]; then
 else
 	make clang-format
 fi
-
-ln -fs $PWD/bin/clang-format ../haiku-format
