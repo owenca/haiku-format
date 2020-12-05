@@ -10,9 +10,11 @@ fi
 version=10.0.1
 prefix=https://github.com/llvm/llvm-project/releases/download/llvmorg-$version
 suffix=$version.src.tar.xz
+llvmTarball=llvm-$suffix
+clangTarball=clang-$suffix
 
-wget -N $prefix/llvm-$suffix
-wget -N $prefix/clang-$suffix
+test -e $llvmTarball || wget -N $prefix/$llvmTarball
+test -e $clangTarball || wget -N $prefix/$clangTarball
 
 extract()
 {
@@ -21,18 +23,28 @@ extract()
 	tar xf $(basename $1)-$suffix -C $1 --strip-components=1 --skip-old-files
 }
 
-extract llvm
+test -e llvm || extract llvm
 
 pattern='^--- a/clang'
 diffFile=clang-$version.diff
 clangDir=llvm/tools/clang
+list=$(grep "$pattern" $diffFile  | sed 's#'"$pattern"'#'$clangDir'#')
 
-rm -fv $(grep "$pattern" $diffFile  | sed 's#'"$pattern"'#'$clangDir'#')
+for file in $list; do
+	test -e $file && mv -fv $file $file.old
+done
+
 extract $clangDir
 
 cd $clangDir
 patch -N -p2 -r - < ../../../$diffFile
 cd -
+
+quit=
+for file in $list; do
+	cmp -s $file.old $file && mv -fv $file.old $file || quit=false
+done
+test -z $quit && exit 0
 
 if [ -d build ]; then
 	cd build
