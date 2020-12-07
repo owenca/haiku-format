@@ -46,10 +46,35 @@ index f12bca48c63..f3cef557917 100644
    for (StringRef Directory = Path; !Directory.empty();
         Directory = llvm::sys::path::parent_path(Directory)) {
 diff --git a/clang/lib/Format/TokenAnnotator.cpp b/clang/lib/Format/TokenAnnotator.cpp
-index 8cb786a4d34..4b30f689f5b 100644
+index 8cb786a4d34..7a0b97c0926 100644
 --- a/clang/lib/Format/TokenAnnotator.cpp
 +++ b/clang/lib/Format/TokenAnnotator.cpp
-@@ -2146,6 +2146,15 @@ void TokenAnnotator::annotate(AnnotatedLine &Line) {
+@@ -2073,6 +2073,7 @@ private:
+
+ void TokenAnnotator::setCommentLineLevels(
+     SmallVectorImpl<AnnotatedLine *> &Lines) {
++  AnnotatedLine *NextCommentLine = nullptr;
+   const AnnotatedLine *NextNonCommentLine = nullptr;
+   for (SmallVectorImpl<AnnotatedLine *>::reverse_iterator I = Lines.rbegin(),
+                                                           E = Lines.rend();
+@@ -2085,6 +2086,16 @@ void TokenAnnotator::setCommentLineLevels(
+       }
+     }
+
++    if (CommentLine) {
++      NextCommentLine = *I;
++    } else {
++      if (NextCommentLine && NextCommentLine->First->NewlinesBefore == 1 &&
++          NextCommentLine->First->OriginalColumn ==
++          (*I)->First->OriginalColumn + 4)
++        NextCommentLine->Level = (*I)->Level + 1;
++      NextCommentLine = nullptr;
++    }
++
+     // If the comment is currently aligned with the line immediately following
+     // it, that's probably intentional and we should keep it.
+     if (NextNonCommentLine && CommentLine &&
+@@ -2146,6 +2157,15 @@ void TokenAnnotator::annotate(AnnotatedLine &Line) {
 
    Line.First->SpacesRequiredBefore = 1;
    Line.First->CanBreakBefore = Line.First->MustBreakBefore;
@@ -65,7 +90,7 @@ index 8cb786a4d34..4b30f689f5b 100644
  }
 
  // This function heuristically determines whether 'Current' starts the name of a
-@@ -3224,6 +3233,9 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
+@@ -3224,6 +3244,9 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
        Right.Previous->MatchingParen->NestingLevel == 0 &&
        Style.AlwaysBreakTemplateDeclarations == FormatStyle::BTDS_Yes)
      return true;
