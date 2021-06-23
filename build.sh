@@ -41,18 +41,23 @@ patch -N -p2 -r - < ../../../$diffFile
 cd -
 
 quit=
+
 for file in $list; do
 	cmp -s $file.old $file && mv -fv $file.old $file || quit=false
 done
-test -z $quit && exit 0
 
 if [ -d build ]; then
 	cd build
 else
+	type -f cmake &> /dev/null || echo | pkgman install cmake
+	type -f python3 &> /dev/null || echo | pkgman install python3
 	mkdir build
 	cd build
 	cmake -DCMAKE_BUILD_TYPE=MinSizeRel -G "Unix Makefiles" ../llvm
+	quit=false
 fi
+
+test -z $quit && exit 0
 
 if [ $# -eq 1 ]; then
 	make $option $(nproc) clang-format
