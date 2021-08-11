@@ -5,7 +5,6 @@ AlignOperands: false
 AlignTrailingComments: false
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortFunctionsOnASingleLine: InlineOnly
-AlwaysBreakAfterDefinitionReturnType: TopLevel
 AlwaysBreakAfterReturnType: TopLevelDefinitions
 BreakBeforeBinaryOperators: All
 BreakBeforeBraces: Custom
