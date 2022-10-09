@@ -46,7 +46,7 @@ if [ ! -d build ]; then
 
 	for f in cmake ninja; do
 		type -f $f &> /dev/null ||
-		( echo 'Please rerun this script after restarting Haiku'; exit )
+		{ echo 'Please rerun this script after restarting Haiku.'; exit; }
 	done
 
 	cmake -S llvm -B build -G Ninja -DCMAKE_BUILD_TYPE=MinSizeRel -Wno-dev
