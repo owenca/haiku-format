@@ -1,1 +1,0 @@
-int MissingNewlineAtEOF(int n){return n*3;}
