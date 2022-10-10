@@ -1,7 +1,8 @@
 # Customized clang-format for Haiku
 
-Haiku-format is a customized clang-format for the Haiku
-[coding guidelines](https://www.haiku-os.org/development/coding-guidelines).
+Haiku-format is a customized
+[clang-format](https://releases.llvm.org/10.0.0/tools/clang/docs/ClangFormat.html) for the
+[Haiku](https://www.haiku-os.org/development/coding-guidelines) coding guidelines.
 
 ## Building and installing haiku-format on Haiku
 
