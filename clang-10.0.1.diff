@@ -1,5 +1,5 @@
 diff --git a/clang/lib/Format/ContinuationIndenter.cpp b/clang/lib/Format/ContinuationIndenter.cpp
-index 2ff6e5ec234..573f26c511b 100644
+index 2ff6e5ec2344..573f26c511b2 100644
 --- a/clang/lib/Format/ContinuationIndenter.cpp
 +++ b/clang/lib/Format/ContinuationIndenter.cpp
 @@ -758,6 +758,9 @@ unsigned ContinuationIndenter::addTokenOnNewLine(LineState &State,
@@ -22,7 +22,7 @@ index 2ff6e5ec234..573f26c511b 100644
               : 2);
      State.Stack.back().NestedBlockIndent = State.Stack.back().Indent;
 diff --git a/clang/lib/Format/Format.cpp b/clang/lib/Format/Format.cpp
-index f12bca48c63..f3cef557917 100644
+index f12bca48c630..fed398cb9b48 100644
 --- a/clang/lib/Format/Format.cpp
 +++ b/clang/lib/Format/Format.cpp
 @@ -2534,7 +2534,7 @@ const char *StyleOptionHelpDescription =
@@ -34,7 +34,7 @@ index f12bca48c63..f3cef557917 100644
      "directories of the source file (or current\n"
      "directory for stdin).\n"
      "Use -style=\"{key: value, ...}\" to set specific\n"
-@@ -2619,8 +2619,8 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -2619,12 +2619,18 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
      return make_string_error(EC.message());
 
    llvm::SmallVector<std::string, 2> FilesToLookFor;
@@ -43,10 +43,21 @@ index f12bca48c63..f3cef557917 100644
 +  FilesToLookFor.push_back(".haiku-format");
 +  FilesToLookFor.push_back("_haiku-format");
 
-   for (StringRef Directory = Path; !Directory.empty();
+-  for (StringRef Directory = Path; !Directory.empty();
++  bool Haiku = false;
++  for (StringRef Directory = Path; !Haiku;
         Directory = llvm::sys::path::parent_path(Directory)) {
+
++    if (Directory.empty()) {
++      Haiku = true;
++      Directory = "/boot/home/config/settings";
++    }
++
+     auto Status = FS->status(Directory);
+     if (!Status ||
+         Status->getType() != llvm::sys::fs::file_type::directory_file) {
 diff --git a/clang/lib/Format/TokenAnnotator.cpp b/clang/lib/Format/TokenAnnotator.cpp
-index 8cb786a4d34..7a0b97c0926 100644
+index 8cb786a4d343..7a0b97c09267 100644
 --- a/clang/lib/Format/TokenAnnotator.cpp
 +++ b/clang/lib/Format/TokenAnnotator.cpp
 @@ -2073,6 +2073,7 @@ private:
@@ -101,7 +112,7 @@ index 8cb786a4d34..7a0b97c0926 100644
        Style.BreakConstructorInitializers == FormatStyle::BCIS_BeforeComma &&
        !Style.ConstructorInitializerAllOnOneLineOrOnePerLine)
 diff --git a/clang/tools/clang-format/ClangFormat.cpp b/clang/tools/clang-format/ClangFormat.cpp
-index aa40bab52df..b1b071cfdd0 100644
+index aa40bab52df5..b1b071cfdd0f 100644
 --- a/clang/tools/clang-format/ClangFormat.cpp
 +++ b/clang/tools/clang-format/ClangFormat.cpp
 @@ -441,7 +441,7 @@ static bool format(StringRef FileName) {
