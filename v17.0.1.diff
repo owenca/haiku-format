@@ -1,0 +1,558 @@
+diff --git a/clang/include/clang/Format/Format.h b/clang/include/clang/Format/Format.h
+index 8bcf6e6f5..b76a75a2a 100644
+--- a/clang/include/clang/Format/Format.h
++++ b/clang/include/clang/Format/Format.h
+@@ -4340,17 +4340,15 @@ struct FormatStyle {
+           InEmptyParentheses(false), Other(false) {}
+ 
+     SpacesInParensCustom(bool InConditionalStatements, bool InCStyleCasts,
+-        bool InEmptyParentheses, bool Other)
++                         bool InEmptyParentheses, bool Other)
+         : InConditionalStatements(InConditionalStatements),
+-          InCStyleCasts(InCStyleCasts),
+-          InEmptyParentheses(InEmptyParentheses),
++          InCStyleCasts(InCStyleCasts), InEmptyParentheses(InEmptyParentheses),
+           Other(Other) {}
+ 
+     bool operator==(const SpacesInParensCustom &R) const {
+       return InConditionalStatements == R.InConditionalStatements &&
+              InCStyleCasts == R.InCStyleCasts &&
+-             InEmptyParentheses == R.InEmptyParentheses &&
+-             Other == R.Other;
++             InEmptyParentheses == R.InEmptyParentheses && Other == R.Other;
+     }
+     bool operator!=(const SpacesInParensCustom &R) const {
+       return !(*this == R);
+@@ -4741,6 +4739,9 @@ private:
+ FormatStyle getLLVMStyle(
+     FormatStyle::LanguageKind Language = FormatStyle::LanguageKind::LK_Cpp);
+ 
++FormatStyle getHaikuStyle(
++    FormatStyle::LanguageKind Language = FormatStyle::LanguageKind::LK_Cpp);
++
+ /// Returns a format style complying with one of Google's style guides:
+ /// http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml.
+ /// http://google-styleguide.googlecode.com/svn/trunk/javascriptguide.xml.
+@@ -4932,6 +4933,8 @@ extern const char *DefaultFormatStyle;
+ /// Different builds can modify the value to the preferred styles.
+ extern const char *DefaultFallbackStyle;
+ 
++extern bool Haiku;
++
+ /// Construct a FormatStyle based on ``StyleName``.
+ ///
+ /// ``StyleName`` can take several forms:
+diff --git a/clang/lib/Format/ContinuationIndenter.cpp b/clang/lib/Format/ContinuationIndenter.cpp
+index 0ca297a5f..49e67c51c 100644
+--- a/clang/lib/Format/ContinuationIndenter.cpp
++++ b/clang/lib/Format/ContinuationIndenter.cpp
+@@ -892,6 +892,12 @@ unsigned ContinuationIndenter::addTokenOnNewLine(LineState &State,
+ 
+   State.Column = getNewLineColumn(State);
+ 
++  // Remove the extra space after Haiku `for` loop continuation indent tabs.
++  if (Haiku && State.Line->startsWith(tok::kw_for) && PreviousNonComment &&
++      PreviousNonComment->is(tok::semi)) {
++    State.Column -= State.Column % 4;
++  }
++
+   // Add Penalty proportional to amount of whitespace away from FirstColumn
+   // This tends to penalize several lines that are far-right indented,
+   // and prefers a line-break prior to such a block, e.g:
+@@ -1429,10 +1435,12 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
+     //     : First(...), ...
+     //       Next(...)
+     //       ^ line up here.
+-    CurrentState.Indent = State.Column + (Style.BreakConstructorInitializers ==
+-                                                  FormatStyle::BCIS_BeforeComma
+-                                              ? 0
+-                                              : 2);
++    CurrentState.Indent =
++        State.Column + (Haiku || // Haiku CtorInitializerColon on its own line
++                                Style.BreakConstructorInitializers ==
++                                    FormatStyle::BCIS_BeforeComma
++                            ? 0
++                            : 2);
+     CurrentState.NestedBlockIndent = CurrentState.Indent;
+     if (Style.PackConstructorInitializers > FormatStyle::PCIS_BinPack) {
+       CurrentState.AvoidBinPacking = true;
+diff --git a/clang/lib/Format/Format.cpp b/clang/lib/Format/Format.cpp
+index 1075f8e1a..d742f57c4 100644
+--- a/clang/lib/Format/Format.cpp
++++ b/clang/lib/Format/Format.cpp
+@@ -807,7 +807,7 @@ template <> struct MappingTraits<FormatStyle> {
+     StringRef BasedOnStyle;
+     if (IO.outputting()) {
+       StringRef Styles[] = {"LLVM",   "Google", "Chromium", "Mozilla",
+-                            "WebKit", "GNU",    "Microsoft"};
++                            "WebKit", "GNU",    "Haiku",    "Microsoft"};
+       for (StringRef StyleName : Styles) {
+         FormatStyle PredefinedStyle;
+         if (getPredefinedStyle(StyleName, Style.Language, &PredefinedStyle) &&
+@@ -1586,6 +1586,43 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
+   return LLVMStyle;
+ }
+ 
++FormatStyle getHaikuStyle(FormatStyle::LanguageKind Language) {
++  FormatStyle Style = getLLVMStyle(Language);
++  Style.AccessModifierOffset = -4;
++  Style.AlignAfterOpenBracket = FormatStyle::BAS_DontAlign;
++  Style.AlignEscapedNewlines = FormatStyle::ENAS_DontAlign;
++  Style.AlignOperands = FormatStyle::OAS_DontAlign;
++  Style.AlignTrailingComments.Kind = FormatStyle::TCAS_Never;
++  Style.AllowAllParametersOfDeclarationOnNextLine = false;
++  Style.AllowShortFunctionsOnASingleLine = FormatStyle::SFS_InlineOnly;
++  Style.AlwaysBreakAfterReturnType = FormatStyle::RTBS_TopLevelDefinitions;
++  Style.BraceWrapping.AfterCaseLabel = true;
++  Style.BraceWrapping.AfterClass = true;
++  Style.BraceWrapping.AfterExternBlock = true;
++  Style.BraceWrapping.AfterFunction = true;
++  Style.BreakBeforeBinaryOperators = FormatStyle::BOS_All;
++  Style.BreakBeforeBraces = FormatStyle::BS_Custom;
++  Style.ColumnLimit = 100;
++  Style.IndentCaseLabels = true;
++  Style.IndentWidth = 4;
++  Style.InsertBraces = true;
++  Style.InsertNewlineAtEOF = true;
++  Style.LineEnding = FormatStyle::LE_LF;
++  Style.MaxEmptyLinesToKeep = 2;
++  Style.PackConstructorInitializers = FormatStyle::PCIS_Never;
++  Style.PointerAlignment = FormatStyle::PAS_Left;
++  Style.RemoveBracesLLVM = true;
++  Style.RemoveParentheses = FormatStyle::RPS_ReturnStatement;
++  Style.SpaceAfterCStyleCast = true;
++  Style.SpaceAfterTemplateKeyword = false;
++  Style.TabWidth = 4;
++  Style.UseTab = FormatStyle::UT_Always;
++
++  Haiku = true;
++
++  return Style;
++}
++
+ FormatStyle getGoogleStyle(FormatStyle::LanguageKind Language) {
+   if (Language == FormatStyle::LK_TextProto) {
+     FormatStyle GoogleStyle = getGoogleStyle(FormatStyle::LK_Proto);
+@@ -1894,6 +1931,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
+                         FormatStyle *Style) {
+   if (Name.equals_insensitive("llvm"))
+     *Style = getLLVMStyle(Language);
++  else if (Name == "Haiku")
++    *Style = getHaikuStyle(Language);
+   else if (Name.equals_insensitive("chromium"))
+     *Style = getChromiumStyle(Language);
+   else if (Name.equals_insensitive("mozilla"))
+@@ -3818,11 +3857,11 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
+ const char *StyleOptionHelpDescription =
+     "Set coding style. <string> can be:\n"
+     "1. A preset: LLVM, GNU, Google, Chromium, Microsoft,\n"
+-    "   Mozilla, WebKit.\n"
++    "   Haiku, Mozilla, WebKit.\n"
+     "2. 'file' to load style configuration from a\n"
+-    "   .clang-format file in one of the parent directories\n"
++    "   .haiku-format file in one of the parent directories\n"
+     "   of the source file (for stdin, see --assume-filename).\n"
+-    "   If no .clang-format file is found, falls back to\n"
++    "   If no .haiku-format file is found, falls back to\n"
+     "   --fallback-style.\n"
+     "   --style=file is the default.\n"
+     "3. 'file:<format_file_path>' to explicitly specify\n"
+@@ -3886,7 +3925,9 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
+ // Update StyleOptionHelpDescription above when changing this.
+ const char *DefaultFormatStyle = "file";
+ 
+-const char *DefaultFallbackStyle = "LLVM";
++const char *DefaultFallbackStyle = "Haiku";
++
++bool Haiku = false;
+ 
+ llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
+ loadAndParseConfigFile(StringRef ConfigFile, llvm::vfs::FileSystem *FS,
+@@ -3906,11 +3947,13 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+                                      bool AllowUnknownOptions) {
+   if (!FS)
+     FS = llvm::vfs::getRealFileSystem().get();
+-  FormatStyle Style = getLLVMStyle(guessLanguage(FileName, Code));
++  FormatStyle Style = (FallbackStyleName == DefaultFallbackStyle
++                           ? getHaikuStyle
++                           : getLLVMStyle)(guessLanguage(FileName, Code));
+ 
+   FormatStyle FallbackStyle = getNoStyle();
+   if (!getPredefinedStyle(FallbackStyleName, Style.Language, &FallbackStyle))
+-    return make_string_error("Invalid fallback style \"" + FallbackStyleName);
++    return make_string_error("Invalid fallback style: " + FallbackStyleName);
+ 
+   llvm::SmallVector<std::unique_ptr<llvm::MemoryBuffer>, 1>
+       ChildFormatTextToApply;
+@@ -3967,16 +4010,12 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+   // Reset possible inheritance
+   Style.InheritsParentConfig = false;
+ 
+-  // Look for .clang-format/_clang-format file in the file's parent directories.
++  // Look for .clang-format/.haiku-format file in the file's parent directories.
+   SmallString<128> UnsuitableConfigFiles;
+   SmallString<128> Path(FileName);
+   if (std::error_code EC = FS->makeAbsolute(Path))
+     return make_string_error(EC.message());
+ 
+-  llvm::SmallVector<std::string, 2> FilesToLookFor;
+-  FilesToLookFor.push_back(".clang-format");
+-  FilesToLookFor.push_back("_clang-format");
+-
+   auto dropDiagnosticHandler = [](const llvm::SMDiagnostic &, void *) {};
+ 
+   auto applyChildFormatTexts = [&](FormatStyle *Style) {
+@@ -3998,10 +4037,11 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+       continue;
+     }
+ 
+-    for (const auto &F : FilesToLookFor) {
++    {
+       SmallString<128> ConfigFile(Directory);
+ 
+-      llvm::sys::path::append(ConfigFile, F);
++      llvm::sys::path::append(ConfigFile,
++                              Haiku ? ".haiku-format" : ".clang-format");
+       LLVM_DEBUG(llvm::dbgs() << "Trying " << ConfigFile << "...\n");
+ 
+       Status = FS->status(ConfigFile.str());
+@@ -4039,12 +4079,6 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+         Style.InheritsParentConfig = false;
+ 
+         ChildFormatTextToApply.emplace_back(std::move(*Text));
+-
+-        // Breaking out of the inner loop, since we don't want to parse
+-        // .clang-format AND _clang-format, if both exist. Then we continue the
+-        // inner loop (parent directories) in search for the parent
+-        // configuration.
+-        break;
+       }
+     }
+   }
+diff --git a/clang/lib/Format/TokenAnnotator.cpp b/clang/lib/Format/TokenAnnotator.cpp
+index 73840332e..4d8cec448 100644
+--- a/clang/lib/Format/TokenAnnotator.cpp
++++ b/clang/lib/Format/TokenAnnotator.cpp
+@@ -1407,10 +1407,6 @@ private:
+         Tok->setType(TT_TrailingReturnArrow);
+       }
+       break;
+-    case tok::eof:
+-      if (Style.InsertNewlineAtEOF && Tok->NewlinesBefore == 0)
+-        Tok->NewlinesBefore = 1;
+-      break;
+     default:
+       break;
+     }
+@@ -3059,10 +3055,25 @@ private:
+ 
+ void TokenAnnotator::setCommentLineLevels(
+     SmallVectorImpl<AnnotatedLine *> &Lines) const {
++  AnnotatedLine *NextCommentLine = nullptr;
+   const AnnotatedLine *NextNonCommentLine = nullptr;
+   for (AnnotatedLine *Line : llvm::reverse(Lines)) {
+     assert(Line->First);
+ 
++    // Indented comments immediately below a code line are for the code above.
++    if (Haiku) {
++      if (Line->isComment()) {
++        NextCommentLine = Line;
++      } else {
++        if (NextCommentLine && NextCommentLine->First->NewlinesBefore == 1 &&
++            NextCommentLine->First->OriginalColumn ==
++                Line->First->OriginalColumn + 4) {
++          NextCommentLine->Level = Line->Level + 1;
++        }
++        NextCommentLine = nullptr;
++      }
++    }
++
+     // If the comment is currently aligned with the line immediately following
+     // it, that's probably intentional and we should keep it.
+     if (NextNonCommentLine && !NextNonCommentLine->First->Finalized &&
+@@ -3123,8 +3134,29 @@ void TokenAnnotator::annotate(AnnotatedLine &Line) {
+   else if (Line.startsWith(TT_ObjCProperty))
+     Line.Type = LT_ObjCProperty;
+ 
+-  Line.First->SpacesRequiredBefore = 1;
+-  Line.First->CanBreakBefore = Line.First->MustBreakBefore;
++  auto *First = Line.First;
++  First->SpacesRequiredBefore = 1;
++  First->CanBreakBefore = First->MustBreakBefore;
++
++  if (First->is(tok::eof)) {
++    if (First->NewlinesBefore == 0 && Style.InsertNewlineAtEOF)
++      First->NewlinesBefore = 1;
++    return;
++  }
++
++  if (!Haiku)
++    return;
++
++  // Use exactly 2 empty lines to separate Haiku top-level function definitions.
++  static bool Comment = false;
++  if (First->is(tok::comment)) {
++    Comment = true;
++  } else if (Comment) {
++    Comment = false;
++  } else if (Line.Level == 0 && !First->IsFirst && Line.MightBeFunctionDecl &&
++             Line.mightBeFunctionDefinition()) {
++    First->NewlinesBefore = 3;
++  }
+ }
+ 
+ // This function heuristically determines whether 'Current' starts the name of a
+@@ -4217,6 +4249,9 @@ bool TokenAnnotator::spaceRequiredBefore(const AnnotatedLine &Line,
+     return true;
+ 
+   if (Style.isCpp()) {
++    // Haiku has no space between `new` and `(`.
++    if (Haiku && Left.is(tok::kw_new) && Right.is(tok::l_paren))
++      return false;
+     if (Left.is(TT_OverloadedOperator) &&
+         Right.isOneOf(TT_TemplateOpener, TT_TemplateCloser)) {
+       return true;
+@@ -4989,6 +5024,11 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
+       break;
+     }
+   }
++
++  // Also break after Haiku CtorInitializerColon to put it on its own line.
++  if (Haiku && Left.is(TT_CtorInitializerColon))
++    return true;
++
+   if (Style.PackConstructorInitializers == FormatStyle::PCIS_Never) {
+     if (Style.BreakConstructorInitializers == FormatStyle::BCIS_BeforeColon &&
+         (Left.is(TT_CtorInitializerComma) ||
+diff --git a/clang/lib/Format/UnwrappedLineParser.cpp b/clang/lib/Format/UnwrappedLineParser.cpp
+index 852437b93..ab7990687 100644
+--- a/clang/lib/Format/UnwrappedLineParser.cpp
++++ b/clang/lib/Format/UnwrappedLineParser.cpp
+@@ -2581,7 +2581,8 @@ void UnwrappedLineParser::keepAncestorBraces() {
+   if (!Style.RemoveBracesLLVM)
+     return;
+ 
+-  const int MaxNestingLevels = 2;
++  const int MaxNestingLevels = Haiku ? 1 // Haiku only removes innermost braces.
++                                     : 2;
+   const int Size = NestedTooDeep.size();
+   if (Size >= MaxNestingLevels)
+     NestedTooDeep[Size - MaxNestingLevels] = true;
+diff --git a/clang/tools/clang-format/ClangFormat.cpp b/clang/tools/clang-format/ClangFormat.cpp
+index dab8a7f2f..be8d10491 100644
+--- a/clang/tools/clang-format/ClangFormat.cpp
++++ b/clang/tools/clang-format/ClangFormat.cpp
+@@ -68,9 +68,9 @@ static cl::opt<std::string>
+ static cl::opt<std::string>
+     FallbackStyle("fallback-style",
+                   cl::desc("The name of the predefined style used as a\n"
+-                           "fallback in case clang-format is invoked with\n"
+-                           "-style=file, but can not find the .clang-format\n"
+-                           "file to use. Defaults to 'LLVM'.\n"
++                           "fallback in case haiku-format is invoked with\n"
++                           "-style=file, but can not find the .haiku-format\n"
++                           "file to use. Defaults to 'Haiku'.\n"
+                            "Use -fallback-style=none to skip formatting."),
+                   cl::init(clang::format::DefaultFallbackStyle),
+                   cl::cat(ClangFormatCategory));
+@@ -78,9 +78,9 @@ static cl::opt<std::string>
+ static cl::opt<std::string> AssumeFileName(
+     "assume-filename",
+     cl::desc("Set filename used to determine the language and to find\n"
+-             ".clang-format file.\n"
++             ".haiku-format file.\n"
+              "Only used when reading from stdin.\n"
+-             "If this is not passed, the .clang-format file is searched\n"
++             "If this is not passed, the .haiku-format file is searched\n"
+              "relative to the current working directory when reading stdin.\n"
+              "Unrecognized filenames are treated as C++.\n"
+              "supported:\n"
+@@ -540,7 +540,7 @@ static bool format(StringRef FileName) {
+ } // namespace clang
+ 
+ static void PrintVersion(raw_ostream &OS) {
+-  OS << clang::getClangToolFullVersion("clang-format") << '\n';
++  OS << clang::getClangToolFullVersion("haiku-format") << '\n';
+ }
+ 
+ // Dump the configuration.
+diff --git a/clang/unittests/Format/CMakeLists.txt b/clang/unittests/Format/CMakeLists.txt
+index a4f8f7af3..8d3396782 100644
+--- a/clang/unittests/Format/CMakeLists.txt
++++ b/clang/unittests/Format/CMakeLists.txt
+@@ -24,6 +24,7 @@ add_clang_unittest(FormatTests
+   FormatTestVerilog.cpp
+   FormatTokenSourceTest.cpp
+   FormatReplacementTest.cpp
++  HaikuTest.cpp
+   IntegerLiteralSeparatorTest.cpp
+   MacroCallReconstructorTest.cpp
+   MacroExpanderTest.cpp
+diff --git a/clang/unittests/Format/HaikuTest.cpp b/clang/unittests/Format/HaikuTest.cpp
+new file mode 100644
+index 000000000..9ede9d5b6
+--- /dev/null
++++ b/clang/unittests/Format/HaikuTest.cpp
+@@ -0,0 +1,162 @@
++//===- unittest/Format/HaikuTest.cpp --------------------------------------===//
++//
++// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
++// See https://llvm.org/LICENSE.txt for license information.
++// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//
++//===----------------------------------------------------------------------===//
++
++#include "FormatTestBase.h"
++
++#define verifyHaiku(...) _verifyHaiku(__FILE__, __LINE__, __VA_ARGS__)
++#define verifyFormatted(...) _verifyFormatted(__FILE__, __LINE__, __VA_ARGS__)
++
++namespace clang {
++namespace format {
++namespace test {
++namespace {
++
++class HaikuTest : public FormatTestBase {
++  FormatStyle Style;
++
++public:
++  HaikuTest() : Style(getHaikuStyle()) { Style.ColumnLimit = 60; }
++
++protected:
++  void _verifyHaiku(const char *File, int Line, StringRef Expected,
++                    StringRef Code, bool MessUp = true) {
++    testing::ScopedTrace t(File, Line, testing::Message() << Code.str());
++    EXPECT_EQ(Expected.str(), format(Expected, Style))
++        << "Expected code is not stable";
++    EXPECT_EQ(Expected.str(), format(Code, Style));
++    if (MessUp)
++      EXPECT_EQ(Expected.str(), format(messUp(Code), Style));
++  }
++
++  void _verifyHaiku(const char *File, int Line, StringRef Code) {
++    _verifyHaiku(File, Line, Code, Code);
++  }
++
++  void _verifyFormatted(const char *File, int Line, StringRef Code) {
++    _verifyHaiku(File, Line, Code, Code, /*MessUp=*/false);
++  }
++};
++
++TEST_F(HaikuTest, BreakConstructorInitializers) {
++  verifyHaiku("Foo::Foo(int32 param)\n"
++              "\t:\n"
++              "\tfMember(param),\n"
++              "\tfPointerMember(NULL)\n"
++              "{\n"
++              "}\n");
++
++  verifyHaiku("class BreakCtorInitializers\n"
++              "{\n"
++              "private:\n"
++              "\tint a, b;\n"
++              "\n"
++              "public:\n"
++              "\tBreakCtorInitializers(int i)\n"
++              "\t\t:\n"
++              "\t\ta(i)\n"
++              "\t{\n"
++              "\t\tb = 0;\n"
++              "\t}\n"
++              "\tBreakCtorInitializers(int i, int j);\n"
++              "};\n"
++              "\n"
++              "\n"
++              "BreakCtorInitializers::BreakCtorInitializers(int i, int j)\n"
++              "\t:\n"
++              "\ta(i),\n"
++              "\tb(j)\n"
++              "{\n"
++              "}\n",
++              "class BreakCtorInitializers {\n"
++              "  private: int a, b;\n"
++              "\n"
++              "  public:\n"
++              "    BreakCtorInitializers(int i)\n"
++              "      : a(i) { b = 0; }\n"
++              "    BreakCtorInitializers(int i, int j);\n"
++              "};\n"
++              "\n"
++              "BreakCtorInitializers::BreakCtorInitializers(int i, int j)\n"
++              ": a(i), b(j) {}\n");
++}
++
++TEST_F(HaikuTest, ContinuationIndent) {
++  verifyHaiku("for (int32 i = 0; ar->FindMessage(str, i, &msg) == B_OK;\n"
++              "\ti++) {\n"
++              "\tf(i);\n"
++              "}\n");
++}
++
++TEST_F(HaikuTest, CommentsBelowCode) {
++  verifyFormatted("return B_BENDIAN_TO_HOST_INT32(*(uint32*) &color);\n"
++                  "\t// rgb_color is always in rgba format, no matter what\n"
++                  "\t// endian; we always return the value in host endian.\n");
++}
++
++TEST_F(HaikuTest, SeparateFunctionDefinitions) {
++  verifyHaiku("void\n"
++              "f()\n"
++              "{\n"
++              "}\n"
++              "\n"
++              "\n"
++              "void\n"
++              "g()\n"
++              "{\n"
++              "} // g\n"
++              "\n"
++              "\n"
++              "void\n"
++              "h()\n"
++              "{\n"
++              "}\n"
++              "// comment\n"
++              "void\n"
++              "foo()\n"
++              "{\n"
++              "}\n",
++              "void f() {}\n"
++              "void g() {\n"
++              "}\t// g\n"
++              "\n"
++              "void\n"
++              "h() {}\n"
++              "// comment\n"
++              "void foo()\n"
++              "{\n"
++              "}");
++}
++
++TEST_F(HaikuTest, NoSpaceBetweenNewAndLParen) {
++  verifyHaiku("return new(std::nothrow) BView(data);\n");
++}
++
++TEST_F(HaikuTest, InsertAndRemoveBraces) {
++  verifyHaiku("while (a) {\n"
++              "\tif (b)\n"
++              "\t\tc();\n"
++              "}\n",
++              "while (a)\n"
++              "\tif (b)\n"
++              "\t\tc();");
++
++  verifyHaiku("while (a) {\n"
++              "\tif (b)\n"
++              "\t\tc();\n"
++              "}\n",
++              "while (a) {\n"
++              "\tif (b) {\n"
++              "\t\tc();"
++              "\t}\n"
++              "}");
++}
++
++} // namespace
++} // namespace test
++} // namespace format
++} // namespace clang
