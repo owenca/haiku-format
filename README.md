@@ -4,7 +4,7 @@ Haiku-format is a [customized](https://github.com/owenca/llvm-project/tree/haiku
 clang-format for the
 [Haiku](https://www.haiku-os.org/development/coding-guidelines) coding guidelines.
 
-## Building and installing haiku-format on Haiku
+## Building and installing haiku-format on Haiku R1/beta4 (64-bit)
 
 1. Check out haiku-format:
 
@@ -26,7 +26,7 @@ clang-format for the
 > Please remove existing `.haiku-format` config files if you installed v10.0.1 before.
 
 Haiku-format is a superset of clang-format with the default style set to `Haiku`. You can override
-any default formatting
+any default style
 [options](https://releases.llvm.org/17.0.1/tools/clang/docs/ClangFormatStyleOptions.html) with
 `.haiku-format` config files. For example:
 
