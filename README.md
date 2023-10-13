@@ -44,3 +44,7 @@ IntegerLiteralSeparator:
 
 See the clang-format
 [documentation](https://releases.llvm.org/17.0.1/tools/clang/docs/ClangFormat.html) for more info.
+
+## Using git-haiku-format
+
+You can run `git haiku-format` before `git push`. For more info, run `git haiku-format -h`.

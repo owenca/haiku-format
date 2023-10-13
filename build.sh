@@ -3,7 +3,7 @@
 depends='cmake ninja'
 
 for d in $depends; do
-	type -f $d &> /dev/null || pkgman install -y $d || exit 1
+	type -f $d &> /dev/null || pkgman install -y $d || exit
 done
 
 for d in $depends; do
@@ -34,7 +34,7 @@ for a in $assets; do
 	test -e $a || extract $a
 done
 
-cmake -S llvm -B build -G Ninja -DLLVM_ENABLE_PROJECTS=clang -DCMAKE_BUILD_TYPE=MinSizeRel -Wno-dev
+cmake -S llvm -B build -G Ninja -DLLVM_ENABLE_PROJECTS=clang -DCMAKE_BUILD_TYPE=Release -Wno-dev
 patch -N -p1 -r - < ../v$version.diff || :
 
 cd build
