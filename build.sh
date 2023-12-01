@@ -10,7 +10,7 @@ for d in $depends; do
 	type -f $d &> /dev/null || { echo 'Please rerun this script after restarting Haiku.'; exit; }
 done
 
-version=17.0.1
+version=17.0.6
 assets='clang cmake llvm third-party'
 prefix=https://github.com/llvm/llvm-project/releases/download/llvmorg-$version
 suffix=$version.src.tar.xz
@@ -20,12 +20,12 @@ for a in $assets; do
 	test -e $tarball || wget -N $prefix/$tarball
 done
 
-mkdir -p llvm-project
+mkdir -pv llvm-project
 cd llvm-project
 
 extract()
 {
-	mkdir -p $1
+	mkdir -pv $1
 	echo Extracting $1 ...
 	tar xf ../$(basename $1)-$suffix -C $1 --strip-components=1 --skip-old-files
 }
@@ -34,8 +34,9 @@ for a in $assets; do
 	test -e $a || extract $a
 done
 
-cmake -S llvm -B build -G Ninja -DLLVM_ENABLE_PROJECTS=clang -DCMAKE_BUILD_TYPE=Release -Wno-dev
+dir=build
+cmake -Wno-dev -S llvm -B $dir -G Ninja -DLLVM_ENABLE_PROJECTS=clang -DCMAKE_BUILD_TYPE=Release \
+	-DCMAKE_SKIP_RPATH=On
 patch -N -p1 -r - < ../v$version.diff || :
-
-cd build
-ninja clang-format && strip -s bin/clang-format
+ninja -C $dir clang-format
+strip -sv $dir/bin/clang-format

@@ -1,5 +1,5 @@
 diff --git a/clang/include/clang/Format/Format.h b/clang/include/clang/Format/Format.h
-index 8bcf6e6f5..b76a75a2a 100644
+index 8bcf6e6f5..ab0a615b0 100644
 --- a/clang/include/clang/Format/Format.h
 +++ b/clang/include/clang/Format/Format.h
 @@ -4340,17 +4340,15 @@ struct FormatStyle {
@@ -23,17 +23,16 @@ index 8bcf6e6f5..b76a75a2a 100644
      }
      bool operator!=(const SpacesInParensCustom &R) const {
        return !(*this == R);
-@@ -4741,6 +4739,9 @@ private:
+@@ -4741,6 +4739,8 @@ private:
  FormatStyle getLLVMStyle(
      FormatStyle::LanguageKind Language = FormatStyle::LanguageKind::LK_Cpp);
  
-+FormatStyle getHaikuStyle(
-+    FormatStyle::LanguageKind Language = FormatStyle::LanguageKind::LK_Cpp);
++FormatStyle getHaikuStyle();
 +
  /// Returns a format style complying with one of Google's style guides:
  /// http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml.
  /// http://google-styleguide.googlecode.com/svn/trunk/javascriptguide.xml.
-@@ -4932,6 +4933,8 @@ extern const char *DefaultFormatStyle;
+@@ -4932,6 +4932,8 @@ extern const char *DefaultFormatStyle;
  /// Different builds can modify the value to the preferred styles.
  extern const char *DefaultFallbackStyle;
  
@@ -77,7 +76,7 @@ index 0ca297a5f..49e67c51c 100644
      if (Style.PackConstructorInitializers > FormatStyle::PCIS_BinPack) {
        CurrentState.AvoidBinPacking = true;
 diff --git a/clang/lib/Format/Format.cpp b/clang/lib/Format/Format.cpp
-index 1075f8e1a..d742f57c4 100644
+index 1075f8e1a..5763d2302 100644
 --- a/clang/lib/Format/Format.cpp
 +++ b/clang/lib/Format/Format.cpp
 @@ -807,7 +807,7 @@ template <> struct MappingTraits<FormatStyle> {
@@ -89,17 +88,18 @@ index 1075f8e1a..d742f57c4 100644
        for (StringRef StyleName : Styles) {
          FormatStyle PredefinedStyle;
          if (getPredefinedStyle(StyleName, Style.Language, &PredefinedStyle) &&
-@@ -1586,6 +1586,43 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
+@@ -1586,6 +1586,44 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
    return LLVMStyle;
  }
  
-+FormatStyle getHaikuStyle(FormatStyle::LanguageKind Language) {
-+  FormatStyle Style = getLLVMStyle(Language);
++FormatStyle getHaikuStyle() {
++  FormatStyle Style = getLLVMStyle();
 +  Style.AccessModifierOffset = -4;
 +  Style.AlignAfterOpenBracket = FormatStyle::BAS_DontAlign;
 +  Style.AlignEscapedNewlines = FormatStyle::ENAS_DontAlign;
 +  Style.AlignOperands = FormatStyle::OAS_DontAlign;
 +  Style.AlignTrailingComments.Kind = FormatStyle::TCAS_Never;
++  Style.AllowAllArgumentsOnNextLine = false;
 +  Style.AllowAllParametersOfDeclarationOnNextLine = false;
 +  Style.AllowShortFunctionsOnASingleLine = FormatStyle::SFS_InlineOnly;
 +  Style.AlwaysBreakAfterReturnType = FormatStyle::RTBS_TopLevelDefinitions;
@@ -133,16 +133,16 @@ index 1075f8e1a..d742f57c4 100644
  FormatStyle getGoogleStyle(FormatStyle::LanguageKind Language) {
    if (Language == FormatStyle::LK_TextProto) {
      FormatStyle GoogleStyle = getGoogleStyle(FormatStyle::LK_Proto);
-@@ -1894,6 +1931,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
+@@ -1894,6 +1932,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
                          FormatStyle *Style) {
    if (Name.equals_insensitive("llvm"))
      *Style = getLLVMStyle(Language);
 +  else if (Name == "Haiku")
-+    *Style = getHaikuStyle(Language);
++    *Style = getHaikuStyle();
    else if (Name.equals_insensitive("chromium"))
      *Style = getChromiumStyle(Language);
    else if (Name.equals_insensitive("mozilla"))
-@@ -3818,11 +3857,11 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
+@@ -3818,11 +3858,11 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
  const char *StyleOptionHelpDescription =
      "Set coding style. <string> can be:\n"
      "1. A preset: LLVM, GNU, Google, Chromium, Microsoft,\n"
@@ -157,7 +157,7 @@ index 1075f8e1a..d742f57c4 100644
      "   --fallback-style.\n"
      "   --style=file is the default.\n"
      "3. 'file:<format_file_path>' to explicitly specify\n"
-@@ -3886,7 +3925,9 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
+@@ -3886,7 +3926,9 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
  // Update StyleOptionHelpDescription above when changing this.
  const char *DefaultFormatStyle = "file";
  
@@ -168,14 +168,14 @@ index 1075f8e1a..d742f57c4 100644
  
  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
  loadAndParseConfigFile(StringRef ConfigFile, llvm::vfs::FileSystem *FS,
-@@ -3906,11 +3947,13 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -3906,11 +3948,13 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
                                       bool AllowUnknownOptions) {
    if (!FS)
      FS = llvm::vfs::getRealFileSystem().get();
 -  FormatStyle Style = getLLVMStyle(guessLanguage(FileName, Code));
-+  FormatStyle Style = (FallbackStyleName == DefaultFallbackStyle
-+                           ? getHaikuStyle
-+                           : getLLVMStyle)(guessLanguage(FileName, Code));
++  FormatStyle Style = FallbackStyleName == DefaultFallbackStyle
++                          ? getHaikuStyle()
++                          : getLLVMStyle(guessLanguage(FileName, Code));
  
    FormatStyle FallbackStyle = getNoStyle();
    if (!getPredefinedStyle(FallbackStyleName, Style.Language, &FallbackStyle))
@@ -184,7 +184,7 @@ index 1075f8e1a..d742f57c4 100644
  
    llvm::SmallVector<std::unique_ptr<llvm::MemoryBuffer>, 1>
        ChildFormatTextToApply;
-@@ -3967,16 +4010,12 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -3967,16 +4011,12 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
    // Reset possible inheritance
    Style.InheritsParentConfig = false;
  
@@ -202,7 +202,7 @@ index 1075f8e1a..d742f57c4 100644
    auto dropDiagnosticHandler = [](const llvm::SMDiagnostic &, void *) {};
  
    auto applyChildFormatTexts = [&](FormatStyle *Style) {
-@@ -3998,10 +4037,11 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -3998,10 +4038,11 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
        continue;
      }
  
@@ -216,7 +216,7 @@ index 1075f8e1a..d742f57c4 100644
        LLVM_DEBUG(llvm::dbgs() << "Trying " << ConfigFile << "...\n");
  
        Status = FS->status(ConfigFile.str());
-@@ -4039,12 +4079,6 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4039,12 +4080,6 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
          Style.InheritsParentConfig = false;
  
          ChildFormatTextToApply.emplace_back(std::move(*Text));
@@ -230,7 +230,7 @@ index 1075f8e1a..d742f57c4 100644
      }
    }
 diff --git a/clang/lib/Format/TokenAnnotator.cpp b/clang/lib/Format/TokenAnnotator.cpp
-index 73840332e..4d8cec448 100644
+index c52fe12e7..a81b5f46b 100644
 --- a/clang/lib/Format/TokenAnnotator.cpp
 +++ b/clang/lib/Format/TokenAnnotator.cpp
 @@ -1407,10 +1407,6 @@ private:
@@ -269,7 +269,7 @@ index 73840332e..4d8cec448 100644
 +
      // If the comment is currently aligned with the line immediately following
      // it, that's probably intentional and we should keep it.
-     if (NextNonCommentLine && !NextNonCommentLine->First->Finalized &&
+     if (NextNonCommentLine && NextNonCommentLine->First->NewlinesBefore < 2 &&
 @@ -3123,8 +3134,29 @@ void TokenAnnotator::annotate(AnnotatedLine &Line) {
    else if (Line.startsWith(TT_ObjCProperty))
      Line.Type = LT_ObjCProperty;
@@ -302,7 +302,7 @@ index 73840332e..4d8cec448 100644
  }
  
  // This function heuristically determines whether 'Current' starts the name of a
-@@ -4217,6 +4249,9 @@ bool TokenAnnotator::spaceRequiredBefore(const AnnotatedLine &Line,
+@@ -4223,6 +4255,9 @@ bool TokenAnnotator::spaceRequiredBefore(const AnnotatedLine &Line,
      return true;
  
    if (Style.isCpp()) {
@@ -312,7 +312,7 @@ index 73840332e..4d8cec448 100644
      if (Left.is(TT_OverloadedOperator) &&
          Right.isOneOf(TT_TemplateOpener, TT_TemplateCloser)) {
        return true;
-@@ -4989,6 +5024,11 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
+@@ -4995,6 +5030,11 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
        break;
      }
    }
@@ -325,10 +325,10 @@ index 73840332e..4d8cec448 100644
      if (Style.BreakConstructorInitializers == FormatStyle::BCIS_BeforeColon &&
          (Left.is(TT_CtorInitializerComma) ||
 diff --git a/clang/lib/Format/UnwrappedLineParser.cpp b/clang/lib/Format/UnwrappedLineParser.cpp
-index 852437b93..ab7990687 100644
+index 07ff86bc5..c4ed96916 100644
 --- a/clang/lib/Format/UnwrappedLineParser.cpp
 +++ b/clang/lib/Format/UnwrappedLineParser.cpp
-@@ -2581,7 +2581,8 @@ void UnwrappedLineParser::keepAncestorBraces() {
+@@ -2604,7 +2604,8 @@ void UnwrappedLineParser::keepAncestorBraces() {
    if (!Style.RemoveBracesLLVM)
      return;
  
@@ -390,10 +390,10 @@ index a4f8f7af3..8d3396782 100644
    MacroExpanderTest.cpp
 diff --git a/clang/unittests/Format/HaikuTest.cpp b/clang/unittests/Format/HaikuTest.cpp
 new file mode 100644
-index 000000000..9ede9d5b6
+index 000000000..07d7a1028
 --- /dev/null
 +++ b/clang/unittests/Format/HaikuTest.cpp
-@@ -0,0 +1,162 @@
+@@ -0,0 +1,170 @@
 +//===- unittest/Format/HaikuTest.cpp --------------------------------------===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -550,6 +550,14 @@ index 000000000..9ede9d5b6
 +              "\t\tc();"
 +              "\t}\n"
 +              "}");
++}
++
++TEST_F(HaikuTest, BinPackArguments) {
++  verifyHaiku("BString f(reinterpret_cast<char*>(addressof(*o)),\n"
++              "\tdistance(o, r));\n");
++
++  verifyHaiku("BString f{reinterpret_cast<char*>(addressof(*o)),\n"
++              "\tdistance(o, r)};\n");
 +}
 +
 +} // namespace
