@@ -47,4 +47,5 @@ See the clang-format
 
 ## Using git-haiku-format
 
-You can run `git haiku-format` before `git push`. For more info, run `git haiku-format -h`.
+You can run `git haiku-format` before `git push`. For more info, run `git haiku-format -h`. Also,
+see [here](https://discuss.haiku-os.org/t/how-to-use-haiku-format-17-0-1-with-git/14088) for a demo.
