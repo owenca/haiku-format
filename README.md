@@ -1,8 +1,8 @@
 # Customized clang-format for Haiku
 
-Haiku-format is a [customized](https://github.com/owenca/llvm-project/tree/haiku-format-17)
-clang-format for the
-[Haiku](https://www.haiku-os.org/development/coding-guidelines) coding guidelines.
+Haiku-format is a
+[customized clang-format](https://github.com/owenca/llvm-project/tree/haiku-format-18)
+for the [Haiku coding guidelines](https://www.haiku-os.org/development/coding-guidelines).
 
 ## Building and installing haiku-format on Haiku R1/beta4 (64-bit)
 
@@ -25,10 +25,10 @@ clang-format for the
 > [!WARNING]
 > Please remove existing `.haiku-format` config files if you installed v10.0.1 before.
 
-Haiku-format is a superset of clang-format with the default style set to `Haiku`. You can override
-any default style
-[options](https://releases.llvm.org/17.0.1/tools/clang/docs/ClangFormatStyleOptions.html) with
-`.haiku-format` config files. For example:
+Haiku-format is a superset of clang-format with the default style set to `Haiku`.
+You can override any default
+[style options](https://releases.llvm.org/18.1.6/tools/clang/docs/ClangFormatStyleOptions.html)
+with `.haiku-format` config files. For example:
 
 ```
 # for legacy code
@@ -42,8 +42,9 @@ IntegerLiteralSeparator:
   Hex: 2
 ```
 
-See the clang-format
-[documentation](https://releases.llvm.org/17.0.1/tools/clang/docs/ClangFormat.html) for more info.
+See the
+[clang-format documentation](https://releases.llvm.org/18.1.6/tools/clang/docs/ClangFormat.html)
+for more info.
 
 ## Using git-haiku-format
 

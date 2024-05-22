@@ -10,7 +10,7 @@ for d in $depends; do
 	type -f $d &> /dev/null || { echo 'Please rerun this script after restarting Haiku.'; exit; }
 done
 
-version=17.0.6
+version=18.1.6
 assets='clang cmake llvm third-party'
 prefix=https://github.com/llvm/llvm-project/releases/download/llvmorg-$version
 suffix=$version.src.tar.xz
