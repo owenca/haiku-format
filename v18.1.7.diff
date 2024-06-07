@@ -21,23 +21,10 @@ index efcb4e1d87ea..d002b6e5dc7f 100644
  ///
  /// ``StyleName`` can take several forms:
 diff --git a/clang/lib/Format/ContinuationIndenter.cpp b/clang/lib/Format/ContinuationIndenter.cpp
-index 53cd169b0590..f0a6a3a99ee1 100644
+index 53cd169b0590..9ffc79a93d92 100644
 --- a/clang/lib/Format/ContinuationIndenter.cpp
 +++ b/clang/lib/Format/ContinuationIndenter.cpp
-@@ -961,6 +961,12 @@ unsigned ContinuationIndenter::addTokenOnNewLine(LineState &State,
- 
-   State.Column = getNewLineColumn(State);
- 
-+  // Remove the extra space after Haiku `for` loop continuation indent tabs.
-+  if (Haiku && State.Line->startsWith(tok::kw_for) && PreviousNonComment &&
-+      PreviousNonComment->is(tok::semi)) {
-+    State.Column -= State.Column % 4;
-+  }
-+
-   // Add Penalty proportional to amount of whitespace away from FirstColumn
-   // This tends to penalize several lines that are far-right indented,
-   // and prefers a line-break prior to such a block, e.g:
-@@ -1534,10 +1540,12 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
+@@ -1534,10 +1534,12 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
      //     : First(...), ...
      //       Next(...)
      //       ^ line up here.
@@ -54,6 +41,15 @@ index 53cd169b0590..f0a6a3a99ee1 100644
      CurrentState.NestedBlockIndent = CurrentState.Indent;
      if (Style.PackConstructorInitializers > FormatStyle::PCIS_BinPack) {
        CurrentState.AvoidBinPacking = true;
+@@ -1692,7 +1694,7 @@ void ContinuationIndenter::moveStatePastFakeLParens(LineState &State,
+         (!Previous || Previous->isNot(tok::kw_return) ||
+          (Style.Language != FormatStyle::LK_Java && PrecedenceLevel > 0)) &&
+         (Style.AlignAfterOpenBracket != FormatStyle::BAS_DontAlign ||
+-         PrecedenceLevel != prec::Comma || Current.NestingLevel == 0)) {
++         PrecedenceLevel > prec::Comma || Current.NestingLevel == 0)) {
+       NewParenState.Indent = std::max(
+           std::max(State.Column, NewParenState.Indent), CurrentState.LastSpace);
+     }
 diff --git a/clang/lib/Format/Format.cpp b/clang/lib/Format/Format.cpp
 index 10fe35c79a4f..1190bd19bd16 100644
 --- a/clang/lib/Format/Format.cpp
@@ -204,7 +200,7 @@ index 10fe35c79a4f..1190bd19bd16 100644
    }
  
 diff --git a/clang/lib/Format/TokenAnnotator.cpp b/clang/lib/Format/TokenAnnotator.cpp
-index c1f166248192..b1fa7959dfe9 100644
+index 628fe46cc348..6fcd28d49a09 100644
 --- a/clang/lib/Format/TokenAnnotator.cpp
 +++ b/clang/lib/Format/TokenAnnotator.cpp
 @@ -3125,10 +3125,25 @@ private:
@@ -254,7 +250,7 @@ index c1f166248192..b1fa7959dfe9 100644
  }
  
  // This function heuristically determines whether 'Current' starts the name of a
-@@ -5191,6 +5220,11 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
+@@ -5193,6 +5222,11 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
        break;
      }
    }
@@ -267,10 +263,10 @@ index c1f166248192..b1fa7959dfe9 100644
      if (Style.BreakConstructorInitializers == FormatStyle::BCIS_BeforeColon &&
          (Left.is(TT_CtorInitializerComma) ||
 diff --git a/clang/lib/Format/UnwrappedLineParser.cpp b/clang/lib/Format/UnwrappedLineParser.cpp
-index f70affb732a0..6ba2cd451324 100644
+index 179d77bf0049..9e71483f2e04 100644
 --- a/clang/lib/Format/UnwrappedLineParser.cpp
 +++ b/clang/lib/Format/UnwrappedLineParser.cpp
-@@ -2649,7 +2649,8 @@ void UnwrappedLineParser::keepAncestorBraces() {
+@@ -2644,7 +2644,8 @@ void UnwrappedLineParser::keepAncestorBraces() {
    if (!Style.RemoveBracesLLVM)
      return;
  
@@ -330,6 +326,25 @@ index 71f5886d946c..9641ea90a326 100644
    IntegerLiteralSeparatorTest.cpp
    MacroCallReconstructorTest.cpp
    MacroExpanderTest.cpp
+diff --git a/clang/unittests/Format/FormatTest.cpp b/clang/unittests/Format/FormatTest.cpp
+index 11ae41bc78ac..52496e945418 100644
+--- a/clang/unittests/Format/FormatTest.cpp
++++ b/clang/unittests/Format/FormatTest.cpp
+@@ -9148,6 +9148,14 @@ TEST_F(FormatTest, AlignsAfterOpenBracket) {
+                "        b));",
+                Style);
+ 
++  Style.ColumnLimit = 30;
++  verifyFormat("for (int foo = 0; foo < FOO;\n"
++               "    ++foo) {\n"
++               "  bar(foo);\n"
++               "}",
++               Style);
++  Style.ColumnLimit = 80;
++
+   Style.AlignAfterOpenBracket = FormatStyle::BAS_AlwaysBreak;
+   Style.BinPackArguments = false;
+   Style.BinPackParameters = false;
 diff --git a/clang/unittests/Format/HaikuTest.cpp b/clang/unittests/Format/HaikuTest.cpp
 new file mode 100644
 index 000000000000..d46f83e0b260
