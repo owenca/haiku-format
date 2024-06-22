@@ -51,7 +51,7 @@ index 53cd169b0590..9ffc79a93d92 100644
            std::max(State.Column, NewParenState.Indent), CurrentState.LastSpace);
      }
 diff --git a/clang/lib/Format/Format.cpp b/clang/lib/Format/Format.cpp
-index 10fe35c79a4f..1190bd19bd16 100644
+index 10fe35c79a4f..9aecf2cf3fd9 100644
 --- a/clang/lib/Format/Format.cpp
 +++ b/clang/lib/Format/Format.cpp
 @@ -818,8 +818,9 @@ template <> struct MappingTraits<FormatStyle> {
@@ -66,7 +66,7 @@ index 10fe35c79a4f..1190bd19bd16 100644
        for (StringRef StyleName : Styles) {
          FormatStyle PredefinedStyle;
          if (getPredefinedStyle(StyleName, Style.Language, &PredefinedStyle) &&
-@@ -1608,6 +1609,46 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
+@@ -1608,6 +1609,45 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
    return LLVMStyle;
  }
  
@@ -82,7 +82,6 @@ index 10fe35c79a4f..1190bd19bd16 100644
 +  Style.AllowShortFunctionsOnASingleLine = FormatStyle::SFS_InlineOnly;
 +  Style.AlwaysBreakAfterReturnType = FormatStyle::RTBS_TopLevelDefinitions;
 +  Style.BraceWrapping.AfterCaseLabel = true;
-+  Style.BraceWrapping.AfterClass = true;
 +  Style.BraceWrapping.AfterExternBlock = true;
 +  Style.BraceWrapping.AfterFunction = true;
 +  Style.BreakBeforeBinaryOperators = FormatStyle::BOS_All;
@@ -113,7 +112,7 @@ index 10fe35c79a4f..1190bd19bd16 100644
  FormatStyle getGoogleStyle(FormatStyle::LanguageKind Language) {
    if (Language == FormatStyle::LK_TextProto) {
      FormatStyle GoogleStyle = getGoogleStyle(FormatStyle::LK_Proto);
-@@ -1926,6 +1967,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
+@@ -1926,6 +1966,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
                          FormatStyle *Style) {
    if (Name.equals_insensitive("llvm"))
      *Style = getLLVMStyle(Language);
@@ -122,7 +121,7 @@ index 10fe35c79a4f..1190bd19bd16 100644
    else if (Name.equals_insensitive("chromium"))
      *Style = getChromiumStyle(Language);
    else if (Name.equals_insensitive("mozilla"))
-@@ -3849,11 +3892,11 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
+@@ -3849,11 +3891,11 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
  const char *StyleOptionHelpDescription =
      "Set coding style. <string> can be:\n"
      "1. A preset: LLVM, GNU, Google, Chromium, Microsoft,\n"
@@ -137,7 +136,7 @@ index 10fe35c79a4f..1190bd19bd16 100644
      "   --fallback-style.\n"
      "   --style=file is the default.\n"
      "3. 'file:<format_file_path>' to explicitly specify\n"
-@@ -3917,7 +3960,9 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
+@@ -3917,7 +3959,9 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
  // Update StyleOptionHelpDescription above when changing this.
  const char *DefaultFormatStyle = "file";
  
@@ -148,7 +147,7 @@ index 10fe35c79a4f..1190bd19bd16 100644
  
  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
  loadAndParseConfigFile(StringRef ConfigFile, llvm::vfs::FileSystem *FS,
-@@ -3935,7 +3980,9 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -3935,7 +3979,9 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
                                       StringRef FallbackStyleName,
                                       StringRef Code, llvm::vfs::FileSystem *FS,
                                       bool AllowUnknownOptions) {
@@ -159,7 +158,7 @@ index 10fe35c79a4f..1190bd19bd16 100644
    FormatStyle FallbackStyle = getNoStyle();
    if (!getPredefinedStyle(FallbackStyleName, Style.Language, &FallbackStyle))
      return make_string_error("Invalid fallback style: " + FallbackStyleName);
-@@ -4015,11 +4062,7 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4015,11 +4061,7 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
      }
    };
  
@@ -172,7 +171,7 @@ index 10fe35c79a4f..1190bd19bd16 100644
    SmallString<128> UnsuitableConfigFiles;
    for (StringRef Directory = Path; !Directory.empty();
         Directory = llvm::sys::path::parent_path(Directory)) {
-@@ -4029,10 +4072,11 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4029,10 +4071,11 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
        continue;
      }
  
@@ -186,7 +185,7 @@ index 10fe35c79a4f..1190bd19bd16 100644
        LLVM_DEBUG(llvm::dbgs() << "Trying " << ConfigFile << "...\n");
  
        Status = FS->status(ConfigFile);
-@@ -4071,12 +4115,6 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4071,12 +4114,6 @@ llvm::Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
        Style.InheritsParentConfig = false;
  
        ChildFormatTextToApply.emplace_back(std::move(*Text));
@@ -347,10 +346,10 @@ index 11ae41bc78ac..52496e945418 100644
    Style.BinPackParameters = false;
 diff --git a/clang/unittests/Format/HaikuTest.cpp b/clang/unittests/Format/HaikuTest.cpp
 new file mode 100644
-index 000000000000..d46f83e0b260
+index 000000000000..7c90cd74d4e9
 --- /dev/null
 +++ b/clang/unittests/Format/HaikuTest.cpp
-@@ -0,0 +1,170 @@
+@@ -0,0 +1,169 @@
 +//===- unittest/Format/HaikuTest.cpp --------------------------------------===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -403,8 +402,7 @@ index 000000000000..d46f83e0b260
 +              "{\n"
 +              "}\n");
 +
-+  verifyHaiku("class BreakCtorInitializers\n"
-+              "{\n"
++  verifyHaiku("class BreakCtorInitializers {\n"
 +              "private:\n"
 +              "\tint a, b;\n"
 +              "\n"
