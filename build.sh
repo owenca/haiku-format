@@ -1,18 +1,30 @@
 #!/bin/bash -e
 
-depends='cmake ninja'
+version=18.1.8
+
+install()
+{
+	depend=${2:-$1}
+	type -f $1 &> /dev/null || pkgman install -y $depend
+}
+
+if [ "$1" = "-s" ]; then
+	compiler=clang
+	install $compiler llvm${version%%.*}_$compiler
+fi
+
+depends="cmake ninja"
 
 for d in $depends; do
-	type -f $d &> /dev/null || pkgman install -y $d || exit
+	install $d
 done
 
-for d in $depends; do
-	type -f $d &> /dev/null || { echo 'Please rerun this script after restarting Haiku.'; exit; }
+for d in $compiler $depends; do
+	type -f $d &> /dev/null || { echo "Please rerun this script after restarting Haiku"; exit; }
 done
 
 project=llvm-project
-version=18.1.8
-assets='clang cmake llvm third-party'
+assets="clang cmake llvm third-party"
 prefix=https://github.com/llvm/$project/releases/download/llvmorg-$version
 suffix=$version.src.tar.xz
 
@@ -39,7 +51,14 @@ done
 patch -N -p1 -r - < ../v$version.diff || :
 
 dir=build
-cmake -Wno-dev -S llvm -B $dir -G Ninja -DLLVM_ENABLE_PROJECTS=clang -DCMAKE_BUILD_TYPE=Release \
-	-DCMAKE_SKIP_RPATH=On
+
+if [ -v compiler ]; then
+	options="-DBUILD_SHARED_LIBS=ON -DCMAKE_C_COMPILER=$compiler -DCMAKE_CXX_COMPILER=$compiler++"
+	options="$options -DLLVM_USE_LINKER=lld"
+	export LIBRARY_PATH=$LIBRARY_PATH:$(pwd)/$dir/lib
+fi
+
+cmake -Wno-dev -S llvm -B $dir -G Ninja $options -DCMAKE_BUILD_TYPE=Release \
+	-DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=X86
 ninja -C $dir clang-format
 strip -sv $dir/bin/clang-format
