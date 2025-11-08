@@ -11,5 +11,7 @@ chmod -v +x $git_haiku_format
 
 shopt -s extglob
 
-cd build/lib
-cp -fv lib@(clang|LLVM)!(*Gen*).so.* $dir/lib 2> /dev/null
+if [ "$1" = "-s" ]; then
+	cd build/lib
+	cp -fv lib@(clang|LLVM)!(*Gen*).so.* $dir/lib
+fi

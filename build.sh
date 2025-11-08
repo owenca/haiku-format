@@ -53,12 +53,21 @@ patch -N -p1 -r - < ../v$version.diff || :
 dir=build
 
 if [ -v compiler ]; then
-	options="-DBUILD_SHARED_LIBS=ON -DCMAKE_C_COMPILER=$compiler -DCMAKE_CXX_COMPILER=$compiler++"
-	options="$options -DLLVM_USE_LINKER=lld"
+	options=(
+		-DBUILD_SHARED_LIBS=ON \
+		-DCMAKE_C_COMPILER=$compiler \
+		-DCMAKE_CXX_COMPILER=$compiler++ \
+		-DLLVM_USE_LINKER=lld \
+	)
+
 	export LIBRARY_PATH=$LIBRARY_PATH:$(pwd)/$dir/lib
 fi
 
-cmake -Wno-dev -S llvm -B $dir -G Ninja $options -DCMAKE_BUILD_TYPE=Release \
-	-DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=X86
-ninja -C $dir clang-format
-strip -sv $dir/bin/clang-format
+cmake -Wno-dev -S llvm -B $dir -G Ninja ${options[@]} \
+	-DCMAKE_BUILD_TYPE=Release \
+	-DLLVM_ENABLE_PROJECTS=clang \
+	-DLLVM_TARGETS_TO_BUILD=X86
+
+cd $dir
+ninja clang-format
+strip -sv bin/clang-format

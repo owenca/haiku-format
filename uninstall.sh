@@ -1,9 +1,11 @@
 #!/bin/bash -e
 
+cd ~/config/non-packaged/bin
+rm -fv haiku-format git-haiku-format
+
 shopt -s extglob
 
-cd ~/config/non-packaged
-rm -fv lib/lib@(clang|LLVM)*.so.*
-
-cd bin
-rm -fv haiku-format git-haiku-format
+if [ "$1" = "-s" ]; then
+	cd ../lib
+	rm -fv lib@(clang|LLVM)*.so.*
+fi

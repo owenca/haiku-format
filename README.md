@@ -4,7 +4,7 @@ Haiku-format is a
 [customized clang-format](https://github.com/owenca/llvm-project/tree/haiku-format-18)
 for the [Haiku coding guidelines](https://www.haiku-os.org/development/coding-guidelines).
 
-## Building and installing haiku-format on Haiku R1/beta4 (64-bit)
+## Building and installing haiku-format on Haiku R1/beta5 (64-bit)
 
 1. Check out haiku-format:
 
