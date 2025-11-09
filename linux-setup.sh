@@ -19,8 +19,8 @@ function hf_usage()
   cat <<EOF
 build.sh
 
-This script is designed to build the `haiku-format` tool and install it. It will
-work on the Haiku operating system as well as GNU Linux.
+This script is designed to build the `haiku-format` tool and install it on an
+`apt`-based Linux system.
 
 ${script_bin} build
 ${script_bin} clean
