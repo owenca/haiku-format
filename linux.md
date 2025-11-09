@@ -38,11 +38,11 @@ haiku-format -h
 
 If you would like to build again from scratch or would like to clean the build resources run;
 
-1. `./setup.sh clean`
+1. `./linux-setup.sh clean`
 
 ### Uninstall steps
 
-1. `sudo ./setup.sh uninstall`
+1. `sudo ./linux-setup.sh uninstall`
 
 ## Usage
 
