@@ -123,7 +123,7 @@ function hf_build()
 	cmake -Wno-dev -S llvm -B "build" -G Ninja ${cmake_options} \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DLLVM_ENABLE_PROJECTS=clang \
-		-DLLVM_TARGETS_TO_BUILD=X86
+		-DLLVM_TARGETS_TO_BUILD=host
 	ninja -C "build" clang-format
 	strip -sv "build/bin/clang-format"
 
