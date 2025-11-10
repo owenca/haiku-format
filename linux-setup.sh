@@ -125,7 +125,6 @@ function hf_build()
 		-DLLVM_ENABLE_PROJECTS=clang \
 		-DLLVM_TARGETS_TO_BUILD=host
 	ninja -C "build" clang-format
-	strip -sv "build/bin/clang-format"
 
 	popd
 
