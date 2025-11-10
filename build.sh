@@ -1,6 +1,10 @@
 #!/bin/bash -e
 
-version=21.1.5
+version=$(ls -v v*.diff | tail -1 | sed -E 's/v([0-9]+(\.[0-9]+){2})\.diff/\1/')
+
+if [ -z "$version" ]; then
+	exit 1
+fi
 
 install()
 {
