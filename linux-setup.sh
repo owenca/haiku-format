@@ -176,6 +176,7 @@ function hf_install()
 	mkdir -p "${install_dir}/lib"
 
 	cp -fv ${build_dir}/bin/clang-format "${install_dir}/bin/_haiku-format"
+	strip -sv "${install_dir}/bin/_haiku-format"
 	sed s/clang-format/haiku-format/g llvm-project/clang/tools/clang-format/git-clang-format \
 		> "${install_dir}/bin/git-haiku-format"
 
