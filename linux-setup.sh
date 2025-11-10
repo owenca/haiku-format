@@ -29,7 +29,7 @@ sudo ${script_bin} uninstall
 
 EOF
 
-  exit 1
+	exit 1
 }
 
 function hf_confirm_yes_no()
