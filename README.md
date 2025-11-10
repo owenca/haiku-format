@@ -27,7 +27,7 @@ for the [Haiku coding guidelines](https://www.haiku-os.org/development/coding-gu
 
 Haiku-format is a superset of clang-format with the default style set to `Haiku`.
 You can override any default
-[style options](https://releases.llvm.org/18.1.8/tools/clang/docs/ClangFormatStyleOptions.html)
+[style options](https://releases.llvm.org/21.1.2/tools/clang/docs/ClangFormatStyleOptions.html)
 with `.haiku-format` config files. For example:
 
 ```

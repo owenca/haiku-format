@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-version=18.1.8
+version=21.1.5
 
 install()
 {
@@ -68,6 +68,4 @@ cmake -Wno-dev -S llvm -B $dir -G Ninja ${options[@]} \
 	-DLLVM_ENABLE_PROJECTS=clang \
 	-DLLVM_TARGETS_TO_BUILD=X86
 
-cd $dir
-ninja clang-format
-strip -sv bin/clang-format
+ninja -C $dir clang-format
