@@ -42,10 +42,10 @@ index 38104f6c78a6..a0c9c6fa6dfb 100644
      if (Style.PackConstructorInitializers > FormatStyle::PCIS_BinPack) {
        CurrentState.AvoidBinPacking = true;
 diff --git a/clang/lib/Format/Format.cpp b/clang/lib/Format/Format.cpp
-index 5bdb810a3925..b6a86d1330b5 100644
+index 5bdb810a3925..50f1637b908e 100644
 --- a/clang/lib/Format/Format.cpp
 +++ b/clang/lib/Format/Format.cpp
-@@ -881,8 +881,9 @@ template <> struct MappingTraits<FormatStyle> {
+@@ -881,13 +881,18 @@ template <> struct MappingTraits<FormatStyle> {
  
      StringRef BasedOnStyle;
      if (IO.outputting()) {
@@ -57,7 +57,16 @@ index 5bdb810a3925..b6a86d1330b5 100644
        for (StringRef StyleName : Styles) {
          FormatStyle PredefinedStyle;
          if (getPredefinedStyle(StyleName, Style.Language, &PredefinedStyle) &&
-@@ -1728,6 +1729,45 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
+             Style == PredefinedStyle) {
+           BasedOnStyle = StyleName;
++
++          if (StyleName == "Haiku")
++            clang::format::Haiku = true;
++
+           break;
+         }
+       }
+@@ -1728,6 +1733,43 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
    return LLVMStyle;
  }
  
@@ -95,15 +104,13 @@ index 5bdb810a3925..b6a86d1330b5 100644
 +  Style.TabWidth = 4;
 +  Style.UseTab = FormatStyle::UT_Always;
 +
-+  Haiku = true;
-+
 +  return Style;
 +}
 +
  FormatStyle getGoogleStyle(FormatStyle::LanguageKind Language) {
    if (Language == FormatStyle::LK_TextProto) {
      FormatStyle GoogleStyle = getGoogleStyle(FormatStyle::LK_Proto);
-@@ -2053,6 +2093,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
+@@ -2053,6 +2095,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
                          FormatStyle *Style) {
    if (Name.equals_insensitive("llvm"))
      *Style = getLLVMStyle(Language);
@@ -112,7 +119,7 @@ index 5bdb810a3925..b6a86d1330b5 100644
    else if (Name.equals_insensitive("chromium"))
      *Style = getChromiumStyle(Language);
    else if (Name.equals_insensitive("mozilla"))
-@@ -4092,11 +4134,11 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
+@@ -4092,11 +4136,11 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
  const char *StyleOptionHelpDescription =
      "Set coding style. <string> can be:\n"
      "1. A preset: LLVM, GNU, Google, Chromium, Microsoft,\n"
@@ -127,7 +134,7 @@ index 5bdb810a3925..b6a86d1330b5 100644
      "   --fallback-style.\n"
      "   --style=file is the default.\n"
      "3. 'file:<format_file_path>' to explicitly specify\n"
-@@ -4202,7 +4244,9 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
+@@ -4202,7 +4246,9 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
  // Update StyleOptionHelpDescription above when changing this.
  const char *DefaultFormatStyle = "file";
  
@@ -138,7 +145,7 @@ index 5bdb810a3925..b6a86d1330b5 100644
  
  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
  loadAndParseConfigFile(StringRef ConfigFile, llvm::vfs::FileSystem *FS,
-@@ -4226,7 +4270,9 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4226,7 +4272,9 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
                                 llvm::vfs::FileSystem *FS,
                                 bool AllowUnknownOptions,
                                 llvm::SourceMgr::DiagHandlerTy DiagHandler) {
@@ -149,7 +156,7 @@ index 5bdb810a3925..b6a86d1330b5 100644
    FormatStyle FallbackStyle = getNoStyle();
    if (!getPredefinedStyle(FallbackStyleName, Style.Language, &FallbackStyle))
      return make_string_error("Invalid fallback style: " + FallbackStyleName);
-@@ -4309,11 +4355,7 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4309,11 +4357,7 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
      }
    };
  
@@ -162,7 +169,7 @@ index 5bdb810a3925..b6a86d1330b5 100644
    SmallString<128> UnsuitableConfigFiles;
    for (StringRef Directory = Path; !Directory.empty();
         Directory = llvm::sys::path::parent_path(Directory)) {
-@@ -4323,10 +4365,11 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4323,10 +4367,11 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
        continue;
      }
  
@@ -176,7 +183,7 @@ index 5bdb810a3925..b6a86d1330b5 100644
        LLVM_DEBUG(llvm::dbgs() << "Trying " << ConfigFile << "...\n");
  
        Status = FS->status(ConfigFile);
-@@ -4366,12 +4409,6 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4366,12 +4411,6 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
        Style.InheritsParentConfig = false;
  
        ChildFormatTextToApply.emplace_back(std::move(*Text));
@@ -318,10 +325,10 @@ index edfc8d7a5bea..c4a3247ddbb8 100644
    MacroExpanderTest.cpp
 diff --git a/clang/unittests/Format/HaikuTest.cpp b/clang/unittests/Format/HaikuTest.cpp
 new file mode 100644
-index 000000000000..7c90cd74d4e9
+index 000000000000..0703973a6889
 --- /dev/null
 +++ b/clang/unittests/Format/HaikuTest.cpp
-@@ -0,0 +1,169 @@
+@@ -0,0 +1,172 @@
 +//===- unittest/Format/HaikuTest.cpp --------------------------------------===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -344,7 +351,10 @@ index 000000000000..7c90cd74d4e9
 +  FormatStyle Style;
 +
 +public:
-+  HaikuTest() : Style(getHaikuStyle()) { Style.ColumnLimit = 60; }
++  HaikuTest() : Style(getHaikuStyle()) {
++    Haiku = true;
++    Style.ColumnLimit = 60;
++  }
 +
 +protected:
 +  void _verifyHaiku(const char *File, int Line, StringRef Expected,
