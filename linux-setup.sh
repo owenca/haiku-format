@@ -19,8 +19,8 @@ function hf_usage()
 	cat <<EOF
 ${script_bin}
 
-This script is designed to build the `haiku-format` tool and install it on an
-`apt`-based Linux system.
+This script is designed to build the 'haiku-format' tool and install it on an
+'apt'-based Linux system.
 
 ${script_bin} build
 ${script_bin} clean
