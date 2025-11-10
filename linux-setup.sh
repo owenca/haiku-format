@@ -120,7 +120,7 @@ function hf_build()
 	pushd "${llvm_project}"
 
 	patch -N -p1 -r - < "../v${llvm_version}.diff"
-	cmake -Wno-dev -S llvm -B "build" -G Ninja "${cmake_options}" \
+	cmake -Wno-dev -S llvm -B "build" -G Ninja ${cmake_options} \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DLLVM_ENABLE_PROJECTS=clang \
 		-DLLVM_TARGETS_TO_BUILD=X86
