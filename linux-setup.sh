@@ -16,8 +16,8 @@ llvm_base_url="https://github.com/llvm/${llvm_project}/releases/download/llvmorg
 
 function hf_usage()
 {
-  cat <<EOF
-build.sh
+	cat <<EOF
+${script_bin}
 
 This script is designed to build the `haiku-format` tool and install it on an
 `apt`-based Linux system.
