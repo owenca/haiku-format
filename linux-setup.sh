@@ -10,9 +10,7 @@ set -o pipefail
 script_bin=$0
 build_dir="llvm-project/build"
 install_dir="/opt/haiku-format"
-llvm_version=18.1.8
 llvm_project=llvm-project
-llvm_base_url="https://github.com/llvm/${llvm_project}/releases/download/llvmorg-${llvm_version}"
 
 function hf_usage()
 {
@@ -38,12 +36,12 @@ function hf_confirm_yes_no()
 		read -p "$* [y/n]: " yn
 		case $yn in
 			[Yy])
-			  return 0
-			  ;;
+				return 0
+				;;
 			[Nn])
-			  echo "aborted" 1>&2
-			  return 1
-			  ;;
+				echo "aborted" 1>&2
+				return 1
+				;;
 		esac
 	done
 }
@@ -76,8 +74,15 @@ function hf_install_dependencies_linux_gnu_apt()
 
 function hf_download_sources()
 {
+	if [ $# != 1 ]; then
+		echo "missing llvm version to download sources"
+		exit 1
+	fi
+
+	local llvm_version="$1"
 	local assets="clang cmake llvm third-party"
 	local tar_suffix="${llvm_version}.src.tar.xz"
+	local llvm_base_url="https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}"
 	local tarball
 
 	for a in $assets; do
@@ -106,14 +111,25 @@ function hf_download_sources()
 
 function hf_build()
 {
+	local llvm_version
+
+	llvm_version="$(find . -maxdepth 1 -name "v*.diff" | head -1 | sed -E 's/^.\/v([0-9]+\.[0-9]+\.[0-9]+)\.diff$/\1/g')"
+
+	if [[ ! "${llvm_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+		echo "unable to establish the llvm version"
+		exit 1
+	fi
+
 	if [ -e "${llvm_project}" ]; then
 		echo "Please rerun this script after removing ${llvm_project}. You can achieve this by running;"
 		echo "${script_bin} clean"
 		exit 1
 	fi
 
+	echo "building for version [${llvm_version}]"
+
 	hf_install_dependencies_linux_gnu_apt
-	hf_download_sources
+	hf_download_sources "${llvm_version}"
 
 	local cmake_options="-DBUILD_SHARED_LIBS=ON -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_USE_LINKER=lld"
 
