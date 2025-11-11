@@ -115,10 +115,6 @@ function hf_build()
 
 	llvm_version="$(ls -v v*.diff | tail -1 | sed -E 's/v([0-9]+(\.[0-9]+){2})\.diff/\1/')"
 
-	if [ -z "$llvm_version" ]; then
-		exit 1
-	fi
-
 	if [[ ! "${llvm_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
 		echo "unable to establish the llvm version"
 		exit 1
