@@ -21,10 +21,47 @@ index f0d0000c42a9..c76b9f697f03 100644
  ///
  /// ``StyleName`` can take several forms:
 diff --git a/clang/lib/Format/ContinuationIndenter.cpp b/clang/lib/Format/ContinuationIndenter.cpp
-index 38104f6c78a6..a0c9c6fa6dfb 100644
+index 38104f6c78a6..6f855d1c3a42 100644
 --- a/clang/lib/Format/ContinuationIndenter.cpp
 +++ b/clang/lib/Format/ContinuationIndenter.cpp
-@@ -1673,10 +1673,12 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
+@@ -1103,6 +1103,36 @@ unsigned ContinuationIndenter::addTokenOnNewLine(LineState &State,
+   if (NextNonComment->isMemberAccess()) {
+     if (CurrentState.CallContinuation == 0)
+       CurrentState.CallContinuation = State.Column;
++    // Indent lines between .Add...() and .End() in Haiku Layout API.
++    if (Haiku && Current.isNot(tok::comment) &&
++        NextNonComment->is(tok::period)) {
++      auto LayoutCall = [](const FormatToken *Tok) -> StringRef {
++        if (!Tok)
++          return {};
++        const auto *Next = Tok->Next;
++        if (!(Next && Next->is(tok::l_paren)))
++          return {};
++        Next = Next->MatchingParen;
++        if (!Next)
++          return {};
++        assert(Next->is(tok::r_paren));
++        Next = Next->getNextNonComment();
++        if (Next && Next->is(tok::period))
++          return Tok->TokenText;
++        return {};
++      };
++      auto Text = LayoutCall(NextNonComment->Next);
++      auto &Column = CurrentState.CallContinuation;
++      const auto Width = Style.ContinuationIndentWidth;
++      if (Text == "End") {
++        assert(Column >= Width);
++        Column -= Width;
++      } else if (Text.consume_front("Add") &&
++                 (Text == "Group" || Text == "Grid" || Text == "Split" ||
++                  Text == "Cards")) {
++        Column += Width;
++      }
++    }
+   } else if (NextNonComment->is(TT_SelectorName)) {
+     if (!CurrentState.ObjCSelectorNameFound) {
+       if (NextNonComment->LongestObjCSelectorName == 0) {
+@@ -1673,10 +1703,12 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
      //     : First(...), ...
      //       Next(...)
      //       ^ line up here.
@@ -325,10 +362,10 @@ index edfc8d7a5bea..c4a3247ddbb8 100644
    MacroExpanderTest.cpp
 diff --git a/clang/unittests/Format/HaikuTest.cpp b/clang/unittests/Format/HaikuTest.cpp
 new file mode 100644
-index 000000000000..0703973a6889
+index 000000000000..d1d53a2063e2
 --- /dev/null
 +++ b/clang/unittests/Format/HaikuTest.cpp
-@@ -0,0 +1,172 @@
+@@ -0,0 +1,187 @@
 +//===- unittest/Format/HaikuTest.cpp --------------------------------------===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -495,6 +532,21 @@ index 000000000000..0703973a6889
 +
 +  verifyHaiku("BString f{reinterpret_cast<char*>(addressof(*o)),\n"
 +              "\tdistance(o, r)};\n");
++}
++
++TEST_F(HaikuTest, Layout) {
++  verifyHaiku("BLayoutBuilder::Group<>(this, B_VERTICAL)\n"
++              "\t.AddGroup(B_HORIZONTAL)\n"
++              "\t\t.SetInsets(B_USE_WINDOW_SPACING,\n"
++              "\t\t\tB_USE_WINDOW_SPACING, B_USE_WINDOW_SPACING, 0)\n"
++              "\t\t.Add(fSettingsView)\n"
++              "\t\t.End()\n"
++              "\t.Add(new BSeparatorView(B_HORIZONTAL))\n"
++              "\t.AddGroup(B_HORIZONTAL)\n"
++              "\t\t.Add(fDefaultsButton)\n"
++              "\t\t.Add(fRevertButton)\n"
++              "\t\t.AddGlue()\n"
++              "\t\t.End();\n");
 +}
 +
 +} // namespace
