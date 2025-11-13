@@ -1,7 +1,7 @@
 # Customized clang-format for Haiku
 
 Haiku-format is a
-[customized clang-format](https://github.com/owenca/llvm-project/tree/haiku-format-18)
+[customized clang-format](https://github.com/owenca/llvm-project/tree/haiku-format-21)
 for the [Haiku coding guidelines](https://www.haiku-os.org/development/coding-guidelines).
 
 See the [specific instructions](linux.md) for information about using `haiku-format` on Linux.
@@ -45,7 +45,7 @@ IntegerLiteralSeparator:
 ```
 
 See the
-[clang-format documentation](https://releases.llvm.org/18.1.8/tools/clang/docs/ClangFormat.html)
+[clang-format documentation](https://releases.llvm.org/21.1.2/tools/clang/docs/ClangFormat.html)
 for more info.
 
 ## Using git-haiku-format

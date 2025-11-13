@@ -1,8 +1,15 @@
 #!/bin/bash -e
 
-version=$(ls -v v*.diff | tail -1 | sed -E 's/v([0-9]+(\.[0-9]+){2})\.diff/\1/')
+digit="[0-9]"
+digits="$digit+"
+pat="$digits(\.$digits){2}"
 
-if [ -z "$version" ]; then
+shopt -s extglob
+number="+($digit)"
+version=$(ls -v v$number.$number.$number.diff 2> /dev/null | tail -1 | sed -E "s/v($pat)\.diff/\1/")
+
+if [[ ! "$version" =~ $pat ]]; then
+	echo "Couldn't set up version"
 	exit 1
 fi
 
