@@ -79,7 +79,7 @@ index 38104f6c78a6..6f855d1c3a42 100644
      if (Style.PackConstructorInitializers > FormatStyle::PCIS_BinPack) {
        CurrentState.AvoidBinPacking = true;
 diff --git a/clang/lib/Format/Format.cpp b/clang/lib/Format/Format.cpp
-index 5bdb810a3925..50f1637b908e 100644
+index 5bdb810a3925..7af49ac576fc 100644
 --- a/clang/lib/Format/Format.cpp
 +++ b/clang/lib/Format/Format.cpp
 @@ -881,13 +881,18 @@ template <> struct MappingTraits<FormatStyle> {
@@ -103,12 +103,12 @@ index 5bdb810a3925..50f1637b908e 100644
            break;
          }
        }
-@@ -1728,6 +1733,43 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
+@@ -1728,6 +1733,38 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
    return LLVMStyle;
  }
  
 +FormatStyle getHaikuStyle() {
-+  FormatStyle Style = getLLVMStyle();
++  FormatStyle Style = getClangFormatStyle();
 +  Style.AccessModifierOffset = -4;
 +  Style.AlignAfterOpenBracket = FormatStyle::BAS_DontAlign;
 +  Style.AlignEscapedNewlines = FormatStyle::ENAS_DontAlign;
@@ -126,15 +126,10 @@ index 5bdb810a3925..50f1637b908e 100644
 +  Style.ColumnLimit = 100;
 +  Style.IndentCaseLabels = true;
 +  Style.IndentWidth = 4;
-+  Style.InsertBraces = true;
-+  Style.InsertNewlineAtEOF = true;
-+  Style.LineEnding = FormatStyle::LE_LF;
++  Style.IntegerLiteralSeparator = {};
 +  Style.MaxEmptyLinesToKeep = 2;
 +  Style.PackConstructorInitializers = FormatStyle::PCIS_Never;
 +  Style.PointerAlignment = FormatStyle::PAS_Left;
-+  Style.RemoveBracesLLVM = true;
-+  Style.RemoveParentheses = FormatStyle::RPS_ReturnStatement;
-+  Style.RemoveSemicolon = true;
 +  Style.SpaceAfterTemplateKeyword = false;
 +  Style.SpaceBeforeParens = FormatStyle::SBPO_Custom;
 +  Style.SpaceBeforeParensOptions.AfterPlacementOperator = false;
@@ -147,7 +142,7 @@ index 5bdb810a3925..50f1637b908e 100644
  FormatStyle getGoogleStyle(FormatStyle::LanguageKind Language) {
    if (Language == FormatStyle::LK_TextProto) {
      FormatStyle GoogleStyle = getGoogleStyle(FormatStyle::LK_Proto);
-@@ -2053,6 +2095,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
+@@ -2053,6 +2090,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
                          FormatStyle *Style) {
    if (Name.equals_insensitive("llvm"))
      *Style = getLLVMStyle(Language);
@@ -156,7 +151,7 @@ index 5bdb810a3925..50f1637b908e 100644
    else if (Name.equals_insensitive("chromium"))
      *Style = getChromiumStyle(Language);
    else if (Name.equals_insensitive("mozilla"))
-@@ -4092,11 +4136,11 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
+@@ -4092,11 +4131,11 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
  const char *StyleOptionHelpDescription =
      "Set coding style. <string> can be:\n"
      "1. A preset: LLVM, GNU, Google, Chromium, Microsoft,\n"
@@ -171,7 +166,7 @@ index 5bdb810a3925..50f1637b908e 100644
      "   --fallback-style.\n"
      "   --style=file is the default.\n"
      "3. 'file:<format_file_path>' to explicitly specify\n"
-@@ -4202,7 +4246,9 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
+@@ -4202,7 +4241,9 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
  // Update StyleOptionHelpDescription above when changing this.
  const char *DefaultFormatStyle = "file";
  
@@ -182,7 +177,7 @@ index 5bdb810a3925..50f1637b908e 100644
  
  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
  loadAndParseConfigFile(StringRef ConfigFile, llvm::vfs::FileSystem *FS,
-@@ -4226,7 +4272,9 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4226,7 +4267,9 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
                                 llvm::vfs::FileSystem *FS,
                                 bool AllowUnknownOptions,
                                 llvm::SourceMgr::DiagHandlerTy DiagHandler) {
@@ -193,7 +188,7 @@ index 5bdb810a3925..50f1637b908e 100644
    FormatStyle FallbackStyle = getNoStyle();
    if (!getPredefinedStyle(FallbackStyleName, Style.Language, &FallbackStyle))
      return make_string_error("Invalid fallback style: " + FallbackStyleName);
-@@ -4309,11 +4357,7 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4309,11 +4352,7 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
      }
    };
  
@@ -206,7 +201,7 @@ index 5bdb810a3925..50f1637b908e 100644
    SmallString<128> UnsuitableConfigFiles;
    for (StringRef Directory = Path; !Directory.empty();
         Directory = llvm::sys::path::parent_path(Directory)) {
-@@ -4323,10 +4367,11 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4323,10 +4362,11 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
        continue;
      }
  
@@ -220,7 +215,7 @@ index 5bdb810a3925..50f1637b908e 100644
        LLVM_DEBUG(llvm::dbgs() << "Trying " << ConfigFile << "...\n");
  
        Status = FS->status(ConfigFile);
-@@ -4366,12 +4411,6 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4366,12 +4406,6 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
        Style.InheritsParentConfig = false;
  
        ChildFormatTextToApply.emplace_back(std::move(*Text));
@@ -297,7 +292,7 @@ index 57b2872566a4..2079ea1c3c34 100644
      if (Style.BreakConstructorInitializers == FormatStyle::BCIS_BeforeColon &&
          (Left.is(TT_CtorInitializerComma) ||
 diff --git a/clang/lib/Format/UnwrappedLineParser.cpp b/clang/lib/Format/UnwrappedLineParser.cpp
-index 934605733542..c435b2cbe5a2 100644
+index 3df071a197c6..d2d9022fefee 100644
 --- a/clang/lib/Format/UnwrappedLineParser.cpp
 +++ b/clang/lib/Format/UnwrappedLineParser.cpp
 @@ -2770,7 +2770,8 @@ void UnwrappedLineParser::keepAncestorBraces() {

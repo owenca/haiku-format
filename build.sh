@@ -31,7 +31,7 @@ for d in $depends; do
 done
 
 for d in $compiler $depends; do
-	type -f $d &> /dev/null || { echo "Please rerun this script after restarting Haiku"; exit; }
+	type -f $d &> /dev/null || { echo "Please rerun this script after restarting Haiku"; exit 1; }
 done
 
 project=llvm-project
@@ -46,7 +46,7 @@ done
 
 if [ -e $project ]; then
 	echo "Please rerun this script after removing $project"
-	exit
+	exit 1
 fi
 
 mkdir -v $project
@@ -59,7 +59,7 @@ for a in $assets; do
 	echo
 done
 
-patch -N -p1 -r - < ../v$version.diff || :
+patch -N -p1 -r - < ../v$version.diff || exit 1
 
 dir=build
 
