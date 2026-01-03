@@ -1,8 +1,7 @@
 # Customized clang-format for Haiku
 
-Haiku-format is a
-[customized clang-format](https://github.com/owenca/llvm-project/tree/haiku-format-21)
-for the [Haiku coding guidelines](https://www.haiku-os.org/development/coding-guidelines).
+Haiku-format is a customized clang-format for the
+[Haiku coding guidelines](https://www.haiku-os.org/development/coding-guidelines).
 
 See the [specific instructions](linux.md) for information about using `haiku-format` on Linux.
 
