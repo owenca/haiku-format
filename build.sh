@@ -8,6 +8,9 @@ shopt -s extglob
 number="+($digit)"
 version=$(ls -v v$number.$number.$number.diff 2> /dev/null | tail -1 | sed -E "s/v($pat)\.diff/\1/")
 
+fileVersion=$version
+version=21.1.8
+
 if [[ ! "$version" =~ $pat ]]; then
 	echo "Couldn't set up version"
 	exit 1
@@ -59,7 +62,7 @@ for a in $assets; do
 	echo
 done
 
-patch -N -p1 -r - < ../v$version.diff || exit 1
+patch -N -p1 -r - < ../v$fileVersion.diff || exit 1
 
 dir=build
 
