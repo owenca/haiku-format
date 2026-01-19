@@ -292,7 +292,7 @@ index 57b2872566a4..2079ea1c3c34 100644
      if (Style.BreakConstructorInitializers == FormatStyle::BCIS_BeforeColon &&
          (Left.is(TT_CtorInitializerComma) ||
 diff --git a/clang/lib/Format/UnwrappedLineParser.cpp b/clang/lib/Format/UnwrappedLineParser.cpp
-index 3df071a197c6..d2d9022fefee 100644
+index 3df071a197c6..2fcac7dd604a 100644
 --- a/clang/lib/Format/UnwrappedLineParser.cpp
 +++ b/clang/lib/Format/UnwrappedLineParser.cpp
 @@ -2770,7 +2770,8 @@ void UnwrappedLineParser::keepAncestorBraces() {
@@ -305,6 +305,35 @@ index 3df071a197c6..d2d9022fefee 100644
    const int Size = NestedTooDeep.size();
    if (Size >= MaxNestingLevels)
      NestedTooDeep[Size - MaxNestingLevels] = true;
+@@ -4152,11 +4153,28 @@ void UnwrappedLineParser::parseRecord(bool ParseAsExpr, bool IsJavaRecord) {
+     if (ParseAsExpr) {
+       parseChildBlock();
+     } else {
++      const auto LBracePos = Tokens->getPosition();
++
+       if (ShouldBreakBeforeBrace(Style, InitialToken))
+         addUnwrappedLine();
+ 
+       unsigned AddLevels = Style.IndentAccessModifiers ? 2u : 1u;
+       parseBlock(/*MustBeDeclaration=*/true, AddLevels, /*MunchSemi=*/false);
++
++      // Skip Haiku top-level class/struct/union definition body.
++      if (Haiku && OpenBraceType != TT_RecordLBrace && Line->Level == 0) {
++        if (const auto *Prev = FormatTok->getPreviousNonComment();
++            Prev->is(tok::r_brace)) {
++          Tokens->setPosition(LBracePos);
++          bool PastRBrace = false;
++          for (FormatToken *Tok; (Tok = Tokens->getNextToken()) != FormatTok;) {
++            if (Tok == Prev)
++              PastRBrace = true;
++            if (!PastRBrace)
++              Tok->Finalized = true;
++          }
++        }
++      }
+     }
+     setPreviousRBraceType(ClosingBraceType);
+   }
 diff --git a/clang/tools/clang-format/ClangFormat.cpp b/clang/tools/clang-format/ClangFormat.cpp
 index 24ad3cb42254..90500f9712aa 100644
 --- a/clang/tools/clang-format/ClangFormat.cpp
@@ -357,10 +386,10 @@ index edfc8d7a5bea..c4a3247ddbb8 100644
    MacroExpanderTest.cpp
 diff --git a/clang/unittests/Format/HaikuTest.cpp b/clang/unittests/Format/HaikuTest.cpp
 new file mode 100644
-index 000000000000..d1d53a2063e2
+index 000000000000..fbd9cfe0c8a6
 --- /dev/null
 +++ b/clang/unittests/Format/HaikuTest.cpp
-@@ -0,0 +1,187 @@
+@@ -0,0 +1,211 @@
 +//===- unittest/Format/HaikuTest.cpp --------------------------------------===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -388,6 +417,8 @@ index 000000000000..d1d53a2063e2
 +    Style.ColumnLimit = 60;
 +  }
 +
++  ~HaikuTest() { Haiku = false; }
++
 +protected:
 +  void _verifyHaiku(const char *File, int Line, StringRef Expected,
 +                    StringRef Code, bool MessUp = true) {
@@ -408,6 +439,22 @@ index 000000000000..d1d53a2063e2
 +  }
 +};
 +
++TEST_F(HaikuTest, SkipTopLevelClassDefinitionBody) {
++  verifyHaiku("namespace Haiku {\n"
++              "class Foo : public Bar {\n"
++              "\t\t\tint32\t_PrivateMethod();\n"
++              "\tstatic\tint32\t_SomeStaticPrivateMethod();\n"
++              "};\n"
++              "} // namespace Haiku\n",
++              "namespace Haiku{\n"
++              "class Foo:public Bar{\n"
++              "\t\t\tint32\t_PrivateMethod();\n"
++              "\tstatic\tint32\t_SomeStaticPrivateMethod();\n"
++              "} ;\n"
++              "}\n",
++              /*MessUp=*/false);
++}
++
 +TEST_F(HaikuTest, BreakConstructorInitializers) {
 +  verifyHaiku("Foo::Foo(int32 param)\n"
 +              "\t:\n"
@@ -416,19 +463,23 @@ index 000000000000..d1d53a2063e2
 +              "{\n"
 +              "}\n");
 +
-+  verifyHaiku("class BreakCtorInitializers {\n"
-+              "private:\n"
-+              "\tint a, b;\n"
++  verifyHaiku("void\n"
++              "f()\n"
++              "{\n"
++              "\tclass BreakCtorInitializers {\n"
++              "\tprivate:\n"
++              "\t\tint a, b;\n"
 +              "\n"
-+              "public:\n"
-+              "\tBreakCtorInitializers(int i)\n"
-+              "\t\t:\n"
-+              "\t\ta(i)\n"
-+              "\t{\n"
-+              "\t\tb = 0;\n"
-+              "\t}\n"
-+              "\tBreakCtorInitializers(int i, int j);\n"
-+              "};\n"
++              "\tpublic:\n"
++              "\t\tBreakCtorInitializers(int i)\n"
++              "\t\t\t:\n"
++              "\t\t\ta(i)\n"
++              "\t\t{\n"
++              "\t\t\tb = 0;\n"
++              "\t\t}\n"
++              "\t\tBreakCtorInitializers(int i, int j);\n"
++              "\t};\n"
++              "}\n"
 +              "\n"
 +              "\n"
 +              "BreakCtorInitializers::BreakCtorInitializers(int i, int j)\n"
@@ -437,14 +488,16 @@ index 000000000000..d1d53a2063e2
 +              "\tb(j)\n"
 +              "{\n"
 +              "}\n",
-+              "class BreakCtorInitializers {\n"
-+              "  private: int a, b;\n"
++              "void f() {\n"
++              "  class BreakCtorInitializers {\n"
++              "    private: int a, b;\n"
 +              "\n"
-+              "  public:\n"
-+              "    BreakCtorInitializers(int i)\n"
-+              "      : a(i) { b = 0; }\n"
-+              "    BreakCtorInitializers(int i, int j);\n"
-+              "};\n"
++              "    public:\n"
++              "      BreakCtorInitializers(int i)\n"
++              "        : a(i) { b = 0; }\n"
++              "      BreakCtorInitializers(int i, int j);\n"
++              "  };\n"
++              "}\n"
 +              "\n"
 +              "BreakCtorInitializers::BreakCtorInitializers(int i, int j)\n"
 +              ": a(i), b(j) {}\n");
