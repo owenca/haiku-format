@@ -1,12 +1,12 @@
 diff --git a/clang/include/clang/Format/Format.h b/clang/include/clang/Format/Format.h
-index f0d0000c42a9..c76b9f697f03 100644
+index f0d0000c42a9..a513bf8268d0 100644
 --- a/clang/include/clang/Format/Format.h
 +++ b/clang/include/clang/Format/Format.h
 @@ -5557,6 +5557,8 @@ private:
  FormatStyle
  getLLVMStyle(FormatStyle::LanguageKind Language = FormatStyle::LK_Cpp);
  
-+FormatStyle getHaikuStyle();
++FormatStyle getHaikuStyle(FormatStyle::LanguageKind Language);
 +
  /// Returns a format style complying with one of Google's style guides:
  /// http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml.
@@ -21,7 +21,7 @@ index f0d0000c42a9..c76b9f697f03 100644
  ///
  /// ``StyleName`` can take several forms:
 diff --git a/clang/lib/Format/CMakeLists.txt b/clang/lib/Format/CMakeLists.txt
-index 9f4939824fdb..9131d137a3c2 100644
+index 9f4939824fdb..5801fbfd651b 100644
 --- a/clang/lib/Format/CMakeLists.txt
 +++ b/clang/lib/Format/CMakeLists.txt
 @@ -43,7 +43,7 @@ set(check_format_depends)
@@ -29,7 +29,7 @@ index 9f4939824fdb..9131d137a3c2 100644
  foreach(file IN LISTS files)
    add_custom_command(OUTPUT check_format_depend_${i}
 -    COMMAND clang-format ${file} | diff -u ${file} -
-+    COMMAND clang-format -style=clang-format ${file} | diff -u ${file} -
++    COMMAND clang-format -fallback-style=LLVM ${file} | diff -u ${file} -
      VERBATIM
      COMMENT "Checking format of ${file}"
      )
@@ -92,7 +92,7 @@ index 38104f6c78a6..6f855d1c3a42 100644
      if (Style.PackConstructorInitializers > FormatStyle::PCIS_BinPack) {
        CurrentState.AvoidBinPacking = true;
 diff --git a/clang/lib/Format/Format.cpp b/clang/lib/Format/Format.cpp
-index 5bdb810a3925..c73b09a1509b 100644
+index 5bdb810a3925..e5be7f4665f1 100644
 --- a/clang/lib/Format/Format.cpp
 +++ b/clang/lib/Format/Format.cpp
 @@ -881,8 +881,9 @@ template <> struct MappingTraits<FormatStyle> {
@@ -107,19 +107,22 @@ index 5bdb810a3925..c73b09a1509b 100644
        for (StringRef StyleName : Styles) {
          FormatStyle PredefinedStyle;
          if (getPredefinedStyle(StyleName, Style.Language, &PredefinedStyle) &&
-@@ -902,6 +903,7 @@ template <> struct MappingTraits<FormatStyle> {
+@@ -902,6 +903,8 @@ template <> struct MappingTraits<FormatStyle> {
            return;
          }
          Style.Language = OldLanguage;
-+        clang::format::Haiku = BasedOnStyle == "Haiku";
++        if (BasedOnStyle != "Haiku" && !Style.InheritsParentConfig)
++          clang::format::Haiku = false;
        }
      }
  
-@@ -1728,6 +1730,38 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
+@@ -1728,6 +1731,41 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
    return LLVMStyle;
  }
  
-+FormatStyle getHaikuStyle() {
++FormatStyle getHaikuStyle(FormatStyle::LanguageKind Language) {
++  Haiku = true;
++
 +  FormatStyle Style = getClangFormatStyle();
 +  Style.AccessModifierOffset = -4;
 +  Style.AlignAfterOpenBracket = FormatStyle::BAS_DontAlign;
@@ -139,6 +142,7 @@ index 5bdb810a3925..c73b09a1509b 100644
 +  Style.IndentCaseLabels = true;
 +  Style.IndentWidth = 4;
 +  Style.IntegerLiteralSeparator = {};
++  Style.Language = Language;
 +  Style.MaxEmptyLinesToKeep = 2;
 +  Style.PackConstructorInitializers = FormatStyle::PCIS_Never;
 +  Style.PointerAlignment = FormatStyle::PAS_Left;
@@ -154,16 +158,16 @@ index 5bdb810a3925..c73b09a1509b 100644
  FormatStyle getGoogleStyle(FormatStyle::LanguageKind Language) {
    if (Language == FormatStyle::LK_TextProto) {
      FormatStyle GoogleStyle = getGoogleStyle(FormatStyle::LK_Proto);
-@@ -2053,6 +2087,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
+@@ -2053,6 +2091,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
                          FormatStyle *Style) {
    if (Name.equals_insensitive("llvm"))
      *Style = getLLVMStyle(Language);
 +  else if (Name == "Haiku")
-+    *Style = getHaikuStyle();
++    *Style = getHaikuStyle(Language);
    else if (Name.equals_insensitive("chromium"))
      *Style = getChromiumStyle(Language);
    else if (Name.equals_insensitive("mozilla"))
-@@ -4092,11 +4128,11 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
+@@ -4092,11 +4132,11 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
  const char *StyleOptionHelpDescription =
      "Set coding style. <string> can be:\n"
      "1. A preset: LLVM, GNU, Google, Chromium, Microsoft,\n"
@@ -178,7 +182,7 @@ index 5bdb810a3925..c73b09a1509b 100644
      "   --fallback-style.\n"
      "   --style=file is the default.\n"
      "3. 'file:<format_file_path>' to explicitly specify\n"
-@@ -4202,7 +4238,9 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
+@@ -4202,7 +4242,9 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
  // Update StyleOptionHelpDescription above when changing this.
  const char *DefaultFormatStyle = "file";
  
@@ -189,21 +193,24 @@ index 5bdb810a3925..c73b09a1509b 100644
  
  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
  loadAndParseConfigFile(StringRef ConfigFile, llvm::vfs::FileSystem *FS,
-@@ -4226,7 +4264,12 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4226,7 +4268,15 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
                                 llvm::vfs::FileSystem *FS,
                                 bool AllowUnknownOptions,
                                 llvm::SourceMgr::DiagHandlerTy DiagHandler) {
 -  FormatStyle Style = getLLVMStyle(guessLanguage(FileName, Code));
-+  Haiku = StyleName == "Haiku" || StyleName.starts_with_insensitive("file") ||
-+          StyleName.front() == '{';
-+  if (FallbackStyleName != DefaultFallbackStyle)
++  if (FallbackStyleName != DefaultFallbackStyle ||
++      !(StyleName == "Haiku" || StyleName.front() == '{' ||
++        StyleName.starts_with_insensitive("file") ||
++        StyleName.equals_insensitive("inheritparentconfig"))) {
 +    Haiku = false;
++  }
++
 +  FormatStyle Style =
-+      Haiku ? getHaikuStyle() : getLLVMStyle(guessLanguage(FileName, Code));
++      (Haiku ? getHaikuStyle : getLLVMStyle)(guessLanguage(FileName, Code));
    FormatStyle FallbackStyle = getNoStyle();
    if (!getPredefinedStyle(FallbackStyleName, Style.Language, &FallbackStyle))
      return make_string_error("Invalid fallback style: " + FallbackStyleName);
-@@ -4309,11 +4352,7 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4309,11 +4359,7 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
      }
    };
  
@@ -216,7 +223,7 @@ index 5bdb810a3925..c73b09a1509b 100644
    SmallString<128> UnsuitableConfigFiles;
    for (StringRef Directory = Path; !Directory.empty();
         Directory = llvm::sys::path::parent_path(Directory)) {
-@@ -4323,10 +4362,11 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4323,10 +4369,11 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
        continue;
      }
  
@@ -230,7 +237,7 @@ index 5bdb810a3925..c73b09a1509b 100644
        LLVM_DEBUG(llvm::dbgs() << "Trying " << ConfigFile << "...\n");
  
        Status = FS->status(ConfigFile);
-@@ -4366,12 +4406,6 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4366,12 +4413,6 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
        Style.InheritsParentConfig = false;
  
        ChildFormatTextToApply.emplace_back(std::move(*Text));
@@ -401,10 +408,10 @@ index edfc8d7a5bea..f033a760d2cc 100644
    CleanupTest.cpp
 diff --git a/clang/unittests/Format/HaikuTest.cpp b/clang/unittests/Format/HaikuTest.cpp
 new file mode 100644
-index 000000000000..fbd9cfe0c8a6
+index 000000000000..498fc80d000c
 --- /dev/null
 +++ b/clang/unittests/Format/HaikuTest.cpp
-@@ -0,0 +1,211 @@
+@@ -0,0 +1,210 @@
 +//===- unittest/Format/HaikuTest.cpp --------------------------------------===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -427,8 +434,7 @@ index 000000000000..fbd9cfe0c8a6
 +  FormatStyle Style;
 +
 +public:
-+  HaikuTest() : Style(getHaikuStyle()) {
-+    Haiku = true;
++  HaikuTest() : Style(getHaikuStyle(FormatStyle::LK_Cpp)) {
 +    Style.ColumnLimit = 60;
 +  }
 +
