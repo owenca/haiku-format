@@ -14,5 +14,5 @@ cat $log
 ninja clang-format-check-format
 
 input=a.cc
-echo -e 'void\nf()\n{\n}' > $input
+echo -e 'Foo::Foo()\n\t:\n\tfoo(0),\n\tbar(1)\n{\n}' > $input
 bin/clang-format $input | diff $input -

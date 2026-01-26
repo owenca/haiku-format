@@ -52,11 +52,11 @@ if [ -e $project ]; then
 	exit 1
 fi
 
-mkdir -v $project
+mkdir $project
 cd $project
 
 for a in $assets; do
-	mkdir -v $a
+	mkdir $a
 	echo -n "Extracting $a"
 	tar xf ../$(basename $a)-$suffix -C $a --strip-components=1 --checkpoint=.1000
 	echo
