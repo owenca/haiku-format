@@ -8,9 +8,6 @@ shopt -s extglob
 number="+($digit)"
 version=$(ls -v v$number.$number.$number.diff 2> /dev/null | tail -1 | sed -E "s/v($pat)\.diff/\1/")
 
-fileVersion=$version
-version=21.1.8
-
 if [[ ! "$version" =~ $pat ]]; then
 	echo "Couldn't set up version"
 	exit 1
@@ -27,7 +24,7 @@ if [ "$1" = "-s" ]; then
 	install $compiler llvm${version%%.*}_$compiler
 fi
 
-depends="cmake ninja"
+depends="cmake ninja pv"
 
 for d in $depends; do
 	install $d
@@ -38,14 +35,11 @@ for d in $compiler $depends; do
 done
 
 project=llvm-project
-assets="clang cmake llvm third-party"
-prefix=https://github.com/llvm/$project/releases/download/llvmorg-$version
-suffix=$version.src.tar.xz
+source=$project-$version.src
 
-for a in $assets; do
-	tarball=$a-$suffix
-	test -e $tarball || wget -N $prefix/$tarball
-done
+uri=https://github.com/llvm/$project/releases/download/llvmorg-$version
+tarball=$source.tar.xz
+test -e $tarball || wget -N $uri/$tarball
 
 if [ -e $project ]; then
 	echo "Please rerun this script after removing $project"
@@ -55,14 +49,12 @@ fi
 mkdir $project
 cd $project
 
-for a in $assets; do
-	mkdir $a
-	echo -n "Extracting $a"
-	tar xf ../$(basename $a)-$suffix -C $a --strip-components=1 --checkpoint=.1000
-	echo
-done
+echo "Extracting the source"
+pv ../$tarball | tar xJf - $source/{clang,cmake,llvm,third-party} --strip-components=1
 
-patch -N -p1 -r - < ../v$fileVersion.diff || exit 1
+echo
+patch -p1 -r - < ../v$version.diff
+echo
 
 dir=build
 
@@ -78,8 +70,13 @@ if [ -v compiler ]; then
 fi
 
 cmake -Wno-dev -S llvm -B $dir -G Ninja ${options[@]} \
+	-DCLANG_ENABLE_STATIC_ANALYZER=OFF \
 	-DCMAKE_BUILD_TYPE=Release \
+	-DLLVM_APPEND_VC_REV=OFF \
+	-DLLVM_BUILD_TOOLS=OFF \
 	-DLLVM_ENABLE_PROJECTS=clang \
-	-DLLVM_TARGETS_TO_BUILD=X86
+	-DLLVM_INCLUDE_BENCHMARKS=OFF \
+	-DLLVM_INCLUDE_EXAMPLES=OFF \
+	-DLLVM_TARGETS_TO_BUILD=host
 
 ninja -C $dir clang-format

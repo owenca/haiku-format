@@ -1,0 +1,5 @@
+58,59c58
+< # a '.clang-format' or '_clang-format' file to indicate the style that should be
+< # used.
+---
+> # a '.clang-format' file to indicate the style that should be used.

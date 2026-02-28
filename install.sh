@@ -1,22 +1,30 @@
 #!/bin/bash -e
 
-dir=~/config/non-packaged
-bin=$dir/bin
+scriptDir=clang/tools/clang-format
 
-haiku_format=$bin/haiku-format
-git_haiku_format=$bin/git-haiku-format
+configDir=~/config
+vimDir=$configDir/settings/vim
+nonPackagedDir=$configDir/non-packaged
+
+binDir=$nonPackagedDir/bin
+haikuFormat=$binDir/haiku-format
+gitHaikuFormat=$binDir/git-haiku-format
 
 cd llvm-project
 
-cp -fv build/bin/clang-format $haiku_format
-strip -s $haiku_format
+cp -fv build/bin/clang-format $haikuFormat
+strip -s $haikuFormat
 
-sed s/clang-format/haiku-format/g clang/tools/clang-format/git-clang-format > $git_haiku_format
-chmod -v +x $git_haiku_format
+sed s/clang-format/haiku-format/g $scriptDir/git-clang-format > $gitHaikuFormat
+chmod -v +x $gitHaikuFormat
+
+mkdir -pv $vimDir
+patch -o - $scriptDir/clang-format.py ../clang-format.py.diff \
+	| sed s/clang/haiku/g > $vimDir/haiku-format.py
 
 shopt -s extglob
 
 if [ "$1" = "-s" ]; then
 	cd build/lib
-	cp -fv lib@(clang|LLVM)!(*Gen*).so.* $dir/lib
+	cp -fv lib@(clang|LLVM)!(*Gen*).so.* $nonPackagedDir/lib
 fi

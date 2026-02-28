@@ -28,7 +28,7 @@ See the [specific instructions](linux.md) for information about using `haiku-for
 
 Haiku-format is a superset of clang-format with the default style set to `Haiku`.
 You can override any default
-[style options](https://releases.llvm.org/21.1.2/tools/clang/docs/ClangFormatStyleOptions.html)
+[style options](https://releases.llvm.org/22.1.0/tools/clang/docs/ClangFormatStyleOptions.html)
 with `.haiku-format` config files. For example:
 
 ```
@@ -44,7 +44,7 @@ IntegerLiteralSeparator:
 ```
 
 See the
-[clang-format documentation](https://releases.llvm.org/21.1.2/tools/clang/docs/ClangFormat.html)
+[clang-format documentation](https://releases.llvm.org/22.1.0/tools/clang/docs/ClangFormat.html)
 for more info.
 
 ## Using git-haiku-format

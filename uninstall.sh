@@ -1,6 +1,9 @@
 #!/bin/bash -e
 
-cd ~/config/non-packaged/bin
+cd ~/config
+rm -fv settings/vim/haiku-format.py
+
+cd non-packaged/bin
 rm -fv haiku-format git-haiku-format
 
 shopt -s extglob

@@ -1,8 +1,8 @@
 diff --git a/clang/include/clang/Format/Format.h b/clang/include/clang/Format/Format.h
-index f0d0000c42a9..a513bf8268d0 100644
+index c7e57d47f9ed..4efe40aa98c9 100644
 --- a/clang/include/clang/Format/Format.h
 +++ b/clang/include/clang/Format/Format.h
-@@ -5557,6 +5557,8 @@ private:
+@@ -5895,6 +5895,8 @@ private:
  FormatStyle
  getLLVMStyle(FormatStyle::LanguageKind Language = FormatStyle::LK_Cpp);
  
@@ -11,7 +11,7 @@ index f0d0000c42a9..a513bf8268d0 100644
  /// Returns a format style complying with one of Google's style guides:
  /// http://google-styleguide.googlecode.com/svn/trunk/cppguide.xml.
  /// http://google-styleguide.googlecode.com/svn/trunk/javascriptguide.xml.
-@@ -5752,6 +5754,8 @@ extern const char *DefaultFormatStyle;
+@@ -6090,6 +6092,8 @@ extern const char *DefaultFormatStyle;
  /// Different builds can modify the value to the preferred styles.
  extern const char *DefaultFallbackStyle;
  
@@ -21,10 +21,10 @@ index f0d0000c42a9..a513bf8268d0 100644
  ///
  /// ``StyleName`` can take several forms:
 diff --git a/clang/lib/Format/CMakeLists.txt b/clang/lib/Format/CMakeLists.txt
-index 9f4939824fdb..5801fbfd651b 100644
+index 50c0683dc9b7..508e1767bd56 100644
 --- a/clang/lib/Format/CMakeLists.txt
 +++ b/clang/lib/Format/CMakeLists.txt
-@@ -43,7 +43,7 @@ set(check_format_depends)
+@@ -45,7 +45,7 @@ set(check_format_depends)
  set(i 0)
  foreach(file IN LISTS files)
    add_custom_command(OUTPUT check_format_depend_${i}
@@ -34,10 +34,10 @@ index 9f4939824fdb..5801fbfd651b 100644
      COMMENT "Checking format of ${file}"
      )
 diff --git a/clang/lib/Format/ContinuationIndenter.cpp b/clang/lib/Format/ContinuationIndenter.cpp
-index 38104f6c78a6..6f855d1c3a42 100644
+index 1272bb72d423..9987ac0dde6e 100644
 --- a/clang/lib/Format/ContinuationIndenter.cpp
 +++ b/clang/lib/Format/ContinuationIndenter.cpp
-@@ -1103,6 +1103,36 @@ unsigned ContinuationIndenter::addTokenOnNewLine(LineState &State,
+@@ -1167,6 +1167,36 @@ unsigned ContinuationIndenter::addTokenOnNewLine(LineState &State,
    if (NextNonComment->isMemberAccess()) {
      if (CurrentState.CallContinuation == 0)
        CurrentState.CallContinuation = State.Column;
@@ -74,7 +74,7 @@ index 38104f6c78a6..6f855d1c3a42 100644
    } else if (NextNonComment->is(TT_SelectorName)) {
      if (!CurrentState.ObjCSelectorNameFound) {
        if (NextNonComment->LongestObjCSelectorName == 0) {
-@@ -1673,10 +1703,12 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
+@@ -1762,10 +1792,12 @@ unsigned ContinuationIndenter::moveStateToNextToken(LineState &State,
      //     : First(...), ...
      //       Next(...)
      //       ^ line up here.
@@ -88,14 +88,14 @@ index 38104f6c78a6..6f855d1c3a42 100644
 +                                    FormatStyle::BCIS_BeforeComma
 +                            ? 0
 +                            : 2);
-     CurrentState.NestedBlockIndent = CurrentState.Indent;
+     CurrentState.NestedBlockIndent = CurrentState.Indent.Total;
      if (Style.PackConstructorInitializers > FormatStyle::PCIS_BinPack) {
        CurrentState.AvoidBinPacking = true;
 diff --git a/clang/lib/Format/Format.cpp b/clang/lib/Format/Format.cpp
-index 5bdb810a3925..e5be7f4665f1 100644
+index f0e9aff2fd21..b488d071e133 100644
 --- a/clang/lib/Format/Format.cpp
 +++ b/clang/lib/Format/Format.cpp
-@@ -881,8 +881,9 @@ template <> struct MappingTraits<FormatStyle> {
+@@ -943,8 +943,9 @@ template <> struct MappingTraits<FormatStyle> {
  
      StringRef BasedOnStyle;
      if (IO.outputting()) {
@@ -107,7 +107,7 @@ index 5bdb810a3925..e5be7f4665f1 100644
        for (StringRef StyleName : Styles) {
          FormatStyle PredefinedStyle;
          if (getPredefinedStyle(StyleName, Style.Language, &PredefinedStyle) &&
-@@ -902,6 +903,8 @@ template <> struct MappingTraits<FormatStyle> {
+@@ -964,6 +965,8 @@ template <> struct MappingTraits<FormatStyle> {
            return;
          }
          Style.Language = OldLanguage;
@@ -116,7 +116,7 @@ index 5bdb810a3925..e5be7f4665f1 100644
        }
      }
  
-@@ -1728,6 +1731,41 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
+@@ -1882,6 +1885,41 @@ FormatStyle getLLVMStyle(FormatStyle::LanguageKind Language) {
    return LLVMStyle;
  }
  
@@ -125,7 +125,7 @@ index 5bdb810a3925..e5be7f4665f1 100644
 +
 +  FormatStyle Style = getClangFormatStyle();
 +  Style.AccessModifierOffset = -4;
-+  Style.AlignAfterOpenBracket = FormatStyle::BAS_DontAlign;
++  Style.AlignAfterOpenBracket = false;
 +  Style.AlignEscapedNewlines = FormatStyle::ENAS_DontAlign;
 +  Style.AlignOperands = FormatStyle::OAS_DontAlign;
 +  Style.AlignTrailingComments.Kind = FormatStyle::TCAS_Never;
@@ -158,7 +158,7 @@ index 5bdb810a3925..e5be7f4665f1 100644
  FormatStyle getGoogleStyle(FormatStyle::LanguageKind Language) {
    if (Language == FormatStyle::LK_TextProto) {
      FormatStyle GoogleStyle = getGoogleStyle(FormatStyle::LK_Proto);
-@@ -2053,6 +2091,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
+@@ -2209,6 +2247,8 @@ bool getPredefinedStyle(StringRef Name, FormatStyle::LanguageKind Language,
                          FormatStyle *Style) {
    if (Name.equals_insensitive("llvm"))
      *Style = getLLVMStyle(Language);
@@ -167,7 +167,7 @@ index 5bdb810a3925..e5be7f4665f1 100644
    else if (Name.equals_insensitive("chromium"))
      *Style = getChromiumStyle(Language);
    else if (Name.equals_insensitive("mozilla"))
-@@ -4092,11 +4132,11 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
+@@ -4274,11 +4314,11 @@ LangOptions getFormattingLangOpts(const FormatStyle &Style) {
  const char *StyleOptionHelpDescription =
      "Set coding style. <string> can be:\n"
      "1. A preset: LLVM, GNU, Google, Chromium, Microsoft,\n"
@@ -182,7 +182,7 @@ index 5bdb810a3925..e5be7f4665f1 100644
      "   --fallback-style.\n"
      "   --style=file is the default.\n"
      "3. 'file:<format_file_path>' to explicitly specify\n"
-@@ -4202,7 +4242,9 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
+@@ -4384,7 +4424,9 @@ FormatStyle::LanguageKind guessLanguage(StringRef FileName, StringRef Code) {
  // Update StyleOptionHelpDescription above when changing this.
  const char *DefaultFormatStyle = "file";
  
@@ -193,7 +193,7 @@ index 5bdb810a3925..e5be7f4665f1 100644
  
  llvm::ErrorOr<std::unique_ptr<llvm::MemoryBuffer>>
  loadAndParseConfigFile(StringRef ConfigFile, llvm::vfs::FileSystem *FS,
-@@ -4226,7 +4268,15 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4408,7 +4450,15 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
                                 llvm::vfs::FileSystem *FS,
                                 bool AllowUnknownOptions,
                                 llvm::SourceMgr::DiagHandlerTy DiagHandler) {
@@ -210,7 +210,7 @@ index 5bdb810a3925..e5be7f4665f1 100644
    FormatStyle FallbackStyle = getNoStyle();
    if (!getPredefinedStyle(FallbackStyleName, Style.Language, &FallbackStyle))
      return make_string_error("Invalid fallback style: " + FallbackStyleName);
-@@ -4309,11 +4359,7 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4491,11 +4541,7 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
      }
    };
  
@@ -223,7 +223,7 @@ index 5bdb810a3925..e5be7f4665f1 100644
    SmallString<128> UnsuitableConfigFiles;
    for (StringRef Directory = Path; !Directory.empty();
         Directory = llvm::sys::path::parent_path(Directory)) {
-@@ -4323,10 +4369,11 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4505,10 +4551,11 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
        continue;
      }
  
@@ -237,7 +237,7 @@ index 5bdb810a3925..e5be7f4665f1 100644
        LLVM_DEBUG(llvm::dbgs() << "Trying " << ConfigFile << "...\n");
  
        Status = FS->status(ConfigFile);
-@@ -4366,12 +4413,6 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
+@@ -4548,12 +4595,6 @@ Expected<FormatStyle> getStyle(StringRef StyleName, StringRef FileName,
        Style.InheritsParentConfig = false;
  
        ChildFormatTextToApply.emplace_back(std::move(*Text));
@@ -251,10 +251,10 @@ index 5bdb810a3925..e5be7f4665f1 100644
    }
  
 diff --git a/clang/lib/Format/TokenAnnotator.cpp b/clang/lib/Format/TokenAnnotator.cpp
-index 57b2872566a4..2079ea1c3c34 100644
+index 17f5babf90f3..4d209726e79f 100644
 --- a/clang/lib/Format/TokenAnnotator.cpp
 +++ b/clang/lib/Format/TokenAnnotator.cpp
-@@ -3593,10 +3593,25 @@ private:
+@@ -3631,10 +3631,25 @@ private:
  
  void TokenAnnotator::setCommentLineLevels(
      SmallVectorImpl<AnnotatedLine *> &Lines) const {
@@ -280,7 +280,7 @@ index 57b2872566a4..2079ea1c3c34 100644
      // If the comment is currently aligned with the line immediately following
      // it, that's probably intentional and we should keep it.
      if (NextNonCommentLine && NextNonCommentLine->First->NewlinesBefore < 2 &&
-@@ -3764,6 +3779,20 @@ void TokenAnnotator::annotate(AnnotatedLine &Line) {
+@@ -3858,6 +3873,20 @@ void TokenAnnotator::annotate(AnnotatedLine &Line) {
    auto *First = Line.First;
    First->SpacesRequiredBefore = 1;
    First->CanBreakBefore = First->MustBreakBefore;
@@ -301,7 +301,7 @@ index 57b2872566a4..2079ea1c3c34 100644
  }
  
  // This function heuristically determines whether 'Current' starts the name of a
-@@ -5853,6 +5882,11 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
+@@ -5953,6 +5982,11 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
        break;
      }
    }
@@ -314,10 +314,10 @@ index 57b2872566a4..2079ea1c3c34 100644
      if (Style.BreakConstructorInitializers == FormatStyle::BCIS_BeforeColon &&
          (Left.is(TT_CtorInitializerComma) ||
 diff --git a/clang/lib/Format/UnwrappedLineParser.cpp b/clang/lib/Format/UnwrappedLineParser.cpp
-index 3df071a197c6..2fcac7dd604a 100644
+index f57ef1328eac..727c235bd9b0 100644
 --- a/clang/lib/Format/UnwrappedLineParser.cpp
 +++ b/clang/lib/Format/UnwrappedLineParser.cpp
-@@ -2770,7 +2770,8 @@ void UnwrappedLineParser::keepAncestorBraces() {
+@@ -2782,7 +2782,8 @@ void UnwrappedLineParser::keepAncestorBraces() {
    if (!Style.RemoveBracesLLVM)
      return;
  
@@ -327,13 +327,13 @@ index 3df071a197c6..2fcac7dd604a 100644
    const int Size = NestedTooDeep.size();
    if (Size >= MaxNestingLevels)
      NestedTooDeep[Size - MaxNestingLevels] = true;
-@@ -4152,11 +4153,28 @@ void UnwrappedLineParser::parseRecord(bool ParseAsExpr, bool IsJavaRecord) {
+@@ -4154,11 +4155,28 @@ void UnwrappedLineParser::parseRecord(bool ParseAsExpr, bool IsJavaRecord) {
      if (ParseAsExpr) {
        parseChildBlock();
      } else {
 +      const auto LBracePos = Tokens->getPosition();
 +
-       if (ShouldBreakBeforeBrace(Style, InitialToken))
+       if (ShouldBreakBeforeBrace(Style, InitialToken, IsJavaRecord))
          addUnwrappedLine();
  
        unsigned AddLevels = Style.IndentAccessModifiers ? 2u : 1u;
@@ -357,7 +357,7 @@ index 3df071a197c6..2fcac7dd604a 100644
      setPreviousRBraceType(ClosingBraceType);
    }
 diff --git a/clang/tools/clang-format/ClangFormat.cpp b/clang/tools/clang-format/ClangFormat.cpp
-index 24ad3cb42254..90500f9712aa 100644
+index 12ac8a31f24a..9df1506debe2 100644
 --- a/clang/tools/clang-format/ClangFormat.cpp
 +++ b/clang/tools/clang-format/ClangFormat.cpp
 @@ -69,9 +69,9 @@ static cl::opt<std::string>
@@ -385,7 +385,7 @@ index 24ad3cb42254..90500f9712aa 100644
               "relative to the current working directory when reading stdin.\n"
               "Unrecognized filenames are treated as C++.\n"
               "supported:\n"
-@@ -548,7 +548,7 @@ static bool format(StringRef FileName, bool ErrorOnIncompleteFormat = false) {
+@@ -546,7 +546,7 @@ static bool format(StringRef FileName, bool ErrorOnIncompleteFormat = false) {
  } // namespace clang
  
  static void PrintVersion(raw_ostream &OS) {
@@ -395,7 +395,7 @@ index 24ad3cb42254..90500f9712aa 100644
  
  // Dump the configuration.
 diff --git a/clang/unittests/Format/CMakeLists.txt b/clang/unittests/Format/CMakeLists.txt
-index edfc8d7a5bea..f033a760d2cc 100644
+index 03fff988d466..08f3dff432de 100644
 --- a/clang/unittests/Format/CMakeLists.txt
 +++ b/clang/unittests/Format/CMakeLists.txt
 @@ -1,6 +1,7 @@
@@ -403,9 +403,9 @@ index edfc8d7a5bea..f033a760d2cc 100644
  # distinct target enables faster iteration times at low cost.
  add_distinct_clang_unittest(FormatTests
 +  HaikuTest.cpp
+   AlignBracketsTest.cpp
    BracesInserterTest.cpp
    BracesRemoverTest.cpp
-   CleanupTest.cpp
 diff --git a/clang/unittests/Format/HaikuTest.cpp b/clang/unittests/Format/HaikuTest.cpp
 new file mode 100644
 index 000000000000..498fc80d000c

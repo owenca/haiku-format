@@ -15,4 +15,4 @@ ninja clang-format-check-format
 
 input=a.cc
 echo -e 'Foo::Foo()\n\t:\n\tfoo(0),\n\tbar(1)\n{\n}' > $input
-bin/clang-format $input | diff $input -
+bin/clang-format -style='{}' $input | diff $input -
