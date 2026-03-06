@@ -80,30 +80,22 @@ function hf_download_sources()
 	fi
 
 	local llvm_version="$1"
-	local assets="clang cmake llvm third-party"
 	local tar_suffix="${llvm_version}.src.tar.xz"
 	local llvm_base_url="https://github.com/llvm/llvm-project/releases/download/llvmorg-${llvm_version}"
-	local tarball
+	local tarball="${llvm_project}-${llvm_version}.src.tar.xz"
+	local llvm_src_url="${llvm_base_url}/${tarball}"
 
-	for a in $assets; do
-		tarball="${a}-${tar_suffix}"
-		if [ -e "${tarball}" ]; then
-			echo "file [${tarball}] exists - can skip download"
-		else
-			echo "will download [${tarball}]"
-			wget -N "${llvm_base_url}/${tarball}"
-		fi
-	done
+	if [ -e "${tarball}" ]; then
+		echo "file [${tarball}] exists - can skip download"
+	else
+		echo "will download [${tarball}]"
+		wget -N "${llvm_src_url}"
+	fi
 
 	mkdir -v "${llvm_project}"
 
-	for a in $assets; do
-		tarball="${a}-${tar_suffix}"
-		mkdir -v "${llvm_project}/${a}"
-		echo -n "will extract ${a}"
-		tar -xf "${tarball}" -C "${llvm_project}/${a}" --strip-components=1 --checkpoint=.1000
-		echo
-	done
+	echo -n "will extract ${a}"
+	tar -xJf "${tarball}" -C "${llvm_project}" --strip-components=1
 }
 
 # This function will download and unpack the sources and then perform the build. It will
@@ -137,9 +129,14 @@ function hf_build()
 
 	patch -N -p1 -r - < "../v${llvm_version}.diff"
 	cmake -Wno-dev -S llvm -B "build" -G Ninja ${cmake_options} \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DLLVM_ENABLE_PROJECTS=clang \
-		-DLLVM_TARGETS_TO_BUILD=host
+	-DCLANG_ENABLE_STATIC_ANALYZER=OFF \
+	-DCMAKE_BUILD_TYPE=Release \
+	-DLLVM_APPEND_VC_REV=OFF \
+	-DLLVM_BUILD_TOOLS=OFF \
+	-DLLVM_ENABLE_PROJECTS=clang \
+	-DLLVM_INCLUDE_BENCHMARKS=OFF \
+	-DLLVM_INCLUDE_EXAMPLES=OFF \
+	-DLLVM_TARGETS_TO_BUILD=host
 	ninja -C "build" clang-format
 
 	popd
