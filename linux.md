@@ -10,10 +10,10 @@ The `haiku-format` files will be installed at `/opt/haiku-format`. The following
 
 |Files|Description|
 |---|---|
-|`lib/lib*.so.*`|Library resources for the binary|
-|`bin/haiku-format`|a launcher script for `haiku-format`|
-|`bin/_haiku-format`|the `haiku-format` native binary|
+|`bin/haiku-format`|the `haiku-format` native binary|
 |`bin/git-haiku-format`|a git command to launch `haiku-format`|
+
+The `haiku-format` binary is statically linked, which means it does not depend on any dynamic libraries part of LLVM/clang to run.
 
 ### Build and install steps
 

@@ -122,7 +122,7 @@ function hf_build()
 	hf_install_dependencies_linux_gnu_apt
 	hf_download_sources "${llvm_version}"
 
-	local cmake_options="-DBUILD_SHARED_LIBS=ON -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_USE_LINKER=lld"
+	local cmake_options="-DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_USE_LINKER=lld"
 
 	pushd "${llvm_project}"
 
@@ -185,28 +185,14 @@ function hf_install()
 	fi
 
 	mkdir -p "${install_dir}/bin"
-	mkdir -p "${install_dir}/lib"
 
-	cp -fv ${build_dir}/bin/clang-format "${install_dir}/bin/_haiku-format"
-	strip -sv "${install_dir}/bin/_haiku-format"
+	cp -fv ${build_dir}/bin/clang-format "${install_dir}/bin/haiku-format"
+	strip -sv "${install_dir}/bin/haiku-format"
 	sed s/clang-format/haiku-format/g llvm-project/clang/tools/clang-format/git-clang-format \
 		> "${install_dir}/bin/git-haiku-format"
 
-	cat <<EOF > "${install_dir}/bin/haiku-format"
-#!/bin/bash
-LD_LIBRARY_PATH="${install_dir}/lib:\${LIBRARY_PATH}"
-"${install_dir}/bin/_haiku-format" \$@
-EOF
-
 	chmod -v ogu+x "${install_dir}/bin/haiku-format"
-	chmod -v ogu+x "${install_dir}/bin/_haiku-format"
 	chmod -v ogu+x "${install_dir}/bin/git-haiku-format"
-
-	for f in ${build_dir}/lib/lib*.so.*; do
-		if [[ "$f" =~ ^.+/lib(clang|LLVM).+ ]] && ! [[ "$f" =~ ^.+/lib.+Gen.+$ ]]; then
-			cp -v "${f}" "${install_dir}/lib"
-		fi
-	done
 }
 
 hf_uninstall()
